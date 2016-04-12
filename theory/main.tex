@@ -1,0 +1,80 @@
+\documentclass[letter,10pt]{article}
+
+\setcounter{tocdepth}{4} 
+\setcounter{secnumdepth}{4}
+
+\usepackage[top=1.0in, bottom=1.0in, left=1.0in, right=1.0in]{geometry}
+%\usepackage[utf8]{inputenc} 
+%\usepackage{amssymb}
+%\usepackage{caption} 
+%\usepackage{enumerate}
+%\usepackage{lineno}
+%\usepackage{mathtools}
+%\usepackage{tikz}
+
+\usepackage{amsmath} 
+\usepackage{amssymb} 
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{natbib} 
+\usepackage{subcaption} 
+\usepackage{booktabs} 
+\usepackage{authblk}
+
+
+%\linenumbers
+%\linespread{1.5}
+
+
+
+\pdfminorversion=4
+
+\makeatother
+
+\title{An Adaptation of SE Min-Cut for Hyperspectral Image Segmentation}
+
+\author[1]{G D Portwood}
+\author[2]{A Nichols}
+\affil[1]{Department of Mechanical and Industrial Engineering}
+\affil[2]{Department of Electrical and Computer Engineering}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+
+\end{abstract}
+
+\section{Introduction}
+
+\section{Algorithm}
+\citet{estrada04} have defined an affinity measure $a_{i,j}$ between all points
+$\vec{x}_i$ and $\vec{x}_j$ where $||\vec{x}_i-\vec{x}_j||_1=1$ such that
+\begin{equation}
+  a_{i,j}=e^{\frac{-(I^\prime(\vec{x}_i)-I^\prime(\vec{x}_j))^2}{2 \sigma^2}},
+\end{equation}
+where $I^\prime : \mathbb{R}^1 \mapsto \mathbb{R}^1$ is the scalar intensity and
+$\sigma$ is a constant which normalizes variation between pixels.  As an
+extension to a spectral domain, we have accomodated for a dimension of size $k$
+which corresponds to the number of bands in the image, with 
+\begin{equation}
+  a_{i,j}=e^{\frac{-||I^\prime(\vec{x}_i)-I^\prime(\vec{x}_j)||_2^2}{2 \sigma^2}},
+\end{equation}
+where $I^\prime : \mathbb{R}^1 \mapsto \mathbb{R}^1$ and $|| \cdot ||_2$ denotes
+the Euclidean norm.
+
+
+
+
+
+
+\section{Application}
+
+\section{Conclusion}
+
+\bibliographystyle{apalike}
+\bibliography{bib}
+
+\end{document}
