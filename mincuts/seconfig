@@ -1,0 +1,9 @@
+#datafile
+inputData=testdata.dat
+
+nx=600
+ny=480
+#number of wavenumbers
+nw=128
+
+
