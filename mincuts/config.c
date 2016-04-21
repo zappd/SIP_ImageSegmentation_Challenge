@@ -5,12 +5,7 @@
 
 #define LINE_LENGTH 256
 
-struct gconf gconf = {
-  .inputData="data.data",
-  .nx=64,
-  .ny=64,
-  .nw=64
-};
+extern struct gconf gconf;
 
 void readConfig(const char * fn)
 {
