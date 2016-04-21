@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "config.h"
 
-void readEnvi(float *** data)
+void readEnvi(float * data)
 {
 
   FILE * fp = fopen(gconf.inputData,"r");
