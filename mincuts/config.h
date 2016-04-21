@@ -10,6 +10,7 @@ struct gconf
   long nw;
 };
 
+extern struct gconf gconf;
 
 void readConfig(const char *);
 void printConfig(void);
