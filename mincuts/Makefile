@@ -1,8 +1,8 @@
 CC = gcc
 CFLAGS = -c -Wall
 LDFLAGS = -o
-DEPENDENCIES = graphCuts.h config.h
-OBJECTS = main.o graphCuts.o config.o
+DEPENDENCIES = graphCuts.h segmenter.h readENVI.h
+OBJECTS = main.o graphCuts.o segmenter.o readENVI.o
 
 %.o: %.c $(DEPENDENCIES)
 	$(CC) -c -o $@ $< $(CFLAGS)
