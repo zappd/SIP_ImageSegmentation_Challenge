@@ -8,6 +8,8 @@
 #define FOREGROUND 1
 #define BACKGROUND 0
 
+#define DELTA 1E-10
+
 
 /********************************
  * Typedef Structs
@@ -58,6 +60,6 @@ void setTerminalWeights(uint32_t node_id, float source, float sink);
 
 void setEdgeWeight(uint32_t node_id_1, uint32_t node_id_2, float weight_to, float weight_from);
 
-uint8_t getTerminal(int node_id);
+bool getTerminal(uint32_t node_id);
 
 float computeMaximumFlow(bool reuse_trees, uint32_t *changed_nodes, uint32_t *number_changed_nodes);

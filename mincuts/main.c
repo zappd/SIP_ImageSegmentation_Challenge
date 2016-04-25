@@ -1,8 +1,7 @@
 #include <stdio.h>
 
 #include "config.h"
-#include "readENVI.h"
-// #include "segmenter.h"
+#include "segmenter.h"
 // #include "graphCuts.h"
 
 static const char *data_file_path = "/home/zappd/SIP_Challenge_Data/StanfordMemorial_rat1_rot90_crop_bandCrop.img";
@@ -22,11 +21,13 @@ int main(int argc, char* argv[])
 
 	float ***image_cube = readImageCube(data_file_path, header_file_path, &image_info);
 
-	printf("Read Finished");
+	printf("Read Finished\n\n");
+
+	recursivelySegment(image_cube, &image_info);
 
 	freeImageCube(image_cube, &image_info);
 
-    readConfig("seconfig");
+    // readConfig("seconfig");
     /*printConfig();*/
     
     return 0;

@@ -10,7 +10,7 @@
  ********************************/
 
 static int parseHeaderFile(char *header_file, image_info_t *image_info);
-static int readHeaderFile(char const *header_file_path, char **string_buffer);
+static long readHeaderFile(char const *header_file_path, char **string_buffer);
 static int readDataFile(char const *data_file_path, float ****image_cube, image_info_t *image_info);
 
 
@@ -129,7 +129,7 @@ static int readDataFile(char const *data_file_path, float ****image_cube, image_
     {
 		fseek(file_pointer, (band_length*sizeof(float)*band), SEEK_SET);
 
-	    if(fread(band_buffer, sizeof(float), band_length, file_pointer) != band_length)
+	    if(fread(band_buffer, sizeof(float), (size_t)band_length, file_pointer) != band_length)
 	    {
 	        free(band_buffer);
 			printf("Error Reading Band %d\n", band);
@@ -144,8 +144,6 @@ static int readDataFile(char const *data_file_path, float ****image_cube, image_
 				(*image_cube)[line][sample][band] = band_buffer[line*image_info->samples + sample];
 			}
 		}
-
-		printf("%.4f\t\n", band, (*image_cube)[400][356][band]);
     }
 
     // free the temporary buffer memory
@@ -160,7 +158,7 @@ static int readDataFile(char const *data_file_path, float ****image_cube, image_
     return 0;
 }
 
-static int readHeaderFile(char const* header_file_path, char **string_buffer)
+static long readHeaderFile(char const* header_file_path, char **string_buffer)
 {
     FILE *file_pointer;
     long file_length;
@@ -223,7 +221,7 @@ static int readHeaderFile(char const* header_file_path, char **string_buffer)
 
 static int parseHeaderFile(char *header_file, image_info_t *image_info)
 {
-	char delimiter[2] = "\r\n";
+	char delimiter[3] = "\r\n";
 	char *token = strtok(header_file, delimiter);
 
 	while (token != NULL)
@@ -267,7 +265,7 @@ static int parseHeaderFile(char *header_file, image_info_t *image_info)
 			}
 			else 
 			{
-				image_info->data_type = data_type;
+				image_info->data_type = (data_type_t)data_type;
 			}
  		}
 		else if (memcmp(token, INTERLEAVE_KEY, strlen(INTERLEAVE_KEY)) == 0)

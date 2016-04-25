@@ -39,7 +39,7 @@ typedef enum
 	UINT32 = 13,
 	INT64 = 14,
 	UINT64 = 15
-} date_type_t;
+} data_type_t;
 
 
 /********************************
@@ -54,7 +54,7 @@ typedef struct
 
 	uint32_t header_offset;
 
-	date_type_t data_type;
+	data_type_t data_type;
 
 	interleave_t interleave;
 

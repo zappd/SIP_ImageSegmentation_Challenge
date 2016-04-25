@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "graphCuts.h"
 
@@ -37,13 +38,16 @@ static void processSourceOrphan(node_t *orphan_node);
 
 static void processSinkOrphan(node_t *orphan_node);
 
+static bool edgeHasResidualCapacity(edge_t *edge);
+
+static bool nodeHasResidualCapacity(node_t *node);
 
 /********************************
  * Global Vars
  ********************************/
 
-static edge_t * const ORPHAN_EDGE;
-static edge_t * const TERMINAL_EDGE;
+static edge_t ORPHAN_EDGE = {0};
+static edge_t TERMINAL_EDGE = {0};
 
 // number of nodes in the graph
 static uint32_t number_of_nodes = 0;
@@ -63,32 +67,82 @@ static uint32_t maxflow_iteration = 0;
 // counter for iterations of loop
 static uint32_t time = 0;
 
-
 // array of all nodes in the graph
 static node_t *nodes = NULL;
 
 // array of all edges in the graph
 static edge_t *edges = NULL;
 
+static uint32_t nodes_size = 0;
+static uint32_t edges_size = 0;
 
 // head of queue_1 of all active nodes
-static node_t *node_queue_1_head = NULL; // replaces activeQueueFirst[0]
+static node_t *node_queue_1_head = NULL;
 
 // tail of queue_1 of all active nodes
-static node_t *node_queue_1_tail = NULL; // replaces activeQueueLast[0]
+static node_t *node_queue_1_tail = NULL;
 
 // head of queue_2 of all active nodes
-static node_t *node_queue_2_head = NULL; // replaces activeQueueFirst[1]
+static node_t *node_queue_2_head = NULL;
 
 // tail of queue_2 of all active nodes
-static node_t *node_queue_2_tail = NULL; // replaces activeQueueLast[1]
+static node_t *node_queue_2_tail = NULL;
 
 
 
 void initializeGraph(uint32_t num_nodes, uint32_t num_edges)
 {
-    nodes = (node_t *)calloc(num_nodes, sizeof(node_t));
-    edges = (edge_t *)calloc((num_edges * 2), sizeof(edge_t));
+    number_of_nodes = num_nodes;
+    number_of_edges = num_edges * 2;
+
+    current_edge_number = 0;
+
+    total_flow = 0.0f;
+
+    maxflow_iteration = 0;
+
+    time = 0;
+
+    node_queue_1_head = NULL;
+    node_queue_1_tail = NULL;
+    node_queue_2_head = NULL;
+    node_queue_2_tail = NULL;
+
+    if (nodes == NULL)
+    {
+        // if this is the first time around, allocate memory
+        nodes = (node_t *)malloc(number_of_nodes * sizeof(node_t));
+
+        nodes_size = number_of_nodes;
+    }
+    else if (number_of_nodes > nodes_size)
+    {
+        // if this is not the first time around, and we need more memory,
+        // reallocate memory
+        realloc(nodes, (number_of_edges * 2) * sizeof(edge_t));
+        nodes_size = number_of_nodes;
+    }
+
+
+    if (edges == NULL)
+    {
+        // if this is the first time around, allocate memory
+        edges = (edge_t *)malloc((number_of_edges * 2) * sizeof(edge_t));
+
+        edges_size = number_of_edges;
+    }
+    else if (number_of_edges > edges_size)
+    {
+        // if this is not the first time around, and we need more memory,
+        // reallocate memory
+        realloc(edges, (number_of_edges * 2) * sizeof(edge_t));
+
+        edges_size = number_of_edges;
+    }
+
+    // clear out the needed memory for both nodes and edges
+    memset(nodes, 0, number_of_nodes * sizeof(node_t));
+    memset(edges, 0, (number_of_edges * 2) * sizeof(edge_t));
 }
 
 
@@ -178,13 +232,13 @@ void setEdgeWeight(uint32_t node_id_1, uint32_t node_id_2, float weight_to, floa
  * @param node_id the node to check
  * @return Either FOREGROUND or BACKGROUND
  */
-uint8_t getTerminal(int node_id)
+bool getTerminal(uint32_t node_id)
 {
     assert(node_id >= 0 && node_id < number_of_nodes);
 
     node_t *node = &nodes[node_id];
 
-    return (node->parent_edge != NULL) ? node->is_in_sink : BACKGROUND;
+    return (node->parent_edge != NULL) ? node->is_in_sink : (bool)BACKGROUND;
 }
 
 
@@ -244,8 +298,11 @@ static node_t *getNextActiveNode()
             // this was the last one
             node_queue_1_head = NULL;
             node_queue_1_tail  = NULL;
-        } else
+        }
+        else
+        {
             node_queue_1_head = node->next;
+        }
 
         // not in any list anymore
         node->next = NULL;
@@ -264,7 +321,6 @@ static node_t *getNextActiveNode()
  * Orphan Stuff
  **********************************************/
 
-// TODO: fix this
 static orphan_t *orphan_head_node = NULL;
 static orphan_t *orphan_tail_node = NULL;
 
@@ -273,7 +329,7 @@ static orphan_t *orphan_tail_node = NULL;
  */
 static void addOrphanAtFront(node_t *node)
 {
-    node->parent_edge = ORPHAN_EDGE;
+    node->parent_edge = &ORPHAN_EDGE;
     addOrphanToFrontOfQueue(node);
 }
 
@@ -282,7 +338,7 @@ static void addOrphanAtFront(node_t *node)
  */
 static void addOrphanAtBack(node_t *node)
 {
-    node->parent_edge = ORPHAN_EDGE;
+    node->parent_edge = &ORPHAN_EDGE;
     addOrphanToBackOfQueue(node);
 }
 
@@ -368,7 +424,7 @@ static node_t *pollOrphanQueue(void)
     	orphan_tail_node = orphan_head_node;
     }
 
-    node_t *polled_node = (node_t *)orphan_head_node->this;
+    node_t *polled_node = orphan_head_node->this;
 
     if (orphan_head_node->next != NULL)
     {
@@ -417,19 +473,19 @@ static void initializeMaxFlow()
         node->is_in_changed_list = false;
         node->timestamp = time;
 
-        if (node->residual_capacity > 0.0)
+        if (node->residual_capacity > DELTA)
         {
             // node is connected to source
             node->is_in_sink = false;
-            node->parent_edge = TERMINAL_EDGE;
+            node->parent_edge = &TERMINAL_EDGE;
             node->distance = 1;
 
             setNodeActive(node);
         }
-        else if (node->residual_capacity < 0.0)
+        else if (node->residual_capacity < -DELTA)
         {
             node->is_in_sink = true;
-            node->parent_edge = TERMINAL_EDGE;
+            node->parent_edge = &TERMINAL_EDGE;
             node->distance = 1;
             setNodeActive(node);
         }
@@ -479,7 +535,7 @@ static void initializeMaxFlowAndReuseTrees()
 
         setNodeActive(node_1);
 
-        if (node_1->residual_capacity == 0)
+        if (!nodeHasResidualCapacity(node_1))
         {
             if (node_1->parent_edge != NULL)
             {
@@ -489,7 +545,7 @@ static void initializeMaxFlowAndReuseTrees()
             continue;
         }
 
-        if (node_1->residual_capacity > 0)
+        if (node_1->residual_capacity > DELTA)
         {
             if (node_1->parent_edge == NULL || node_1->is_in_sink)
             {
@@ -508,7 +564,7 @@ static void initializeMaxFlowAndReuseTrees()
 
                         if (node_2->parent_edge != NULL &&
                                 node_2->is_in_sink &&
-                                edge->residual_capacity > 0)
+                                edge->residual_capacity > DELTA)
                         {
                             setNodeActive(node_2);
                         }
@@ -545,7 +601,7 @@ static void initializeMaxFlowAndReuseTrees()
             addToChangedList(node_1);
         }
 
-        node_1->parent_edge = TERMINAL_EDGE;
+        node_1->parent_edge = &TERMINAL_EDGE;
         node_1->timestamp = time;
         node_1->distance = 1;
     }
@@ -589,7 +645,7 @@ static void augment(edge_t *middle_edge)
     {
         edge = node->parent_edge;
 
-        if (edge == TERMINAL_EDGE)
+        if (edge == &TERMINAL_EDGE)
 		{
             break;
     	}
@@ -609,7 +665,7 @@ static void augment(edge_t *middle_edge)
 
         edge = node->parent_edge;
 
-        if (edge == TERMINAL_EDGE)
+        if (edge == &TERMINAL_EDGE)
         {
             break;
         }
@@ -635,7 +691,7 @@ static void augment(edge_t *middle_edge)
 
         edge = node->parent_edge;
 
-        if (edge == TERMINAL_EDGE) {
+        if (edge == &TERMINAL_EDGE) {
             // end of path
             break;
         }
@@ -643,8 +699,7 @@ static void augment(edge_t *middle_edge)
         edge->residual_capacity += bottleneck;
         ((edge_t *)edge->sister_edge)->residual_capacity -= bottleneck;
 
-		// TODO - wtf is this shit
-        if (((edge_t *)edge->sister_edge)->residual_capacity == 0)
+        if (!edgeHasResidualCapacity(edge->sister_edge))
         {
             addOrphanAtFront(node);
         }
@@ -652,7 +707,7 @@ static void augment(edge_t *middle_edge)
 
 	node->residual_capacity -= bottleneck;
     
-    if (node->residual_capacity == 0)
+    if (!nodeHasResidualCapacity(node))
     {
         addOrphanAtFront(node);
     }
@@ -662,7 +717,7 @@ static void augment(edge_t *middle_edge)
     {
         edge = node->parent_edge;
 
-        if (edge == TERMINAL_EDGE) 
+        if (edge == &TERMINAL_EDGE)
         {
             // end of path
             break;
@@ -671,7 +726,7 @@ static void augment(edge_t *middle_edge)
 	    ((edge_t *)edge->sister_edge)->residual_capacity += bottleneck;
 	    edge->residual_capacity -= bottleneck;
 
-        if (edge->residual_capacity == 0)
+        if (!edgeHasResidualCapacity(edge))
         {
             addOrphanAtFront(node);
         }
@@ -679,7 +734,7 @@ static void augment(edge_t *middle_edge)
 
     node->residual_capacity += bottleneck;
 
-    if (node->residual_capacity == 0)
+    if (!nodeHasResidualCapacity(node))
     {
         addOrphanAtFront(node);
     }
@@ -699,7 +754,7 @@ static void processSourceOrphan(node_t *orphan)
 
     for (orphan_edge = orphan->first_outgoing_edge; orphan_edge != NULL; orphan_edge = orphan_edge->next)
     {
-        if (((edge_t *)orphan_edge->sister_edge)->residual_capacity != 0)
+        if (edgeHasResidualCapacity(orphan_edge->sister_edge))
         {
             node_t *node = orphan_edge->head;
             edge_t *parent_edge = node->parent_edge;
@@ -719,13 +774,13 @@ static void processSourceOrphan(node_t *orphan)
                     parent_edge = node->parent_edge;
                     distance++;
 
-                    if (parent_edge == TERMINAL_EDGE) {
+                    if (parent_edge == &TERMINAL_EDGE) {
                         node->timestamp = time;
                         node->distance = 1;
                         break;
                     }
 
-                    if (parent_edge == ORPHAN_EDGE) {
+                    if (parent_edge == &ORPHAN_EDGE) {
                         distance = UINT32_MAX;
                         break;
                     }
@@ -776,12 +831,12 @@ static void processSourceOrphan(node_t *orphan)
 
             if (!node->is_in_sink && parent_edge != NULL) 
             {
-                if (((edge_t *)orphan_edge->sister_edge)->residual_capacity != 0)
+                if (edgeHasResidualCapacity(orphan_edge->sister_edge))
                 {
                     setNodeActive(node);
                 }
 
-                if (parent_edge != TERMINAL_EDGE && parent_edge != ORPHAN_EDGE && parent_edge->head == orphan)
+                if (parent_edge != &TERMINAL_EDGE && parent_edge != &ORPHAN_EDGE && parent_edge->head == orphan)
                 {
                     addOrphanAtBack(node);
                 }
@@ -802,7 +857,7 @@ static void processSinkOrphan(node_t *orphan)
 
     for (orphan_edge = orphan->first_outgoing_edge; orphan_edge != NULL; orphan_edge = orphan_edge->next)
     {
-        if (orphan_edge->residual_capacity != 0) {
+        if (edgeHasResidualCapacity(orphan_edge)) {
 
             node_t *node = orphan_edge->head;
             edge_t *parent_edge = node->parent_edge;
@@ -823,14 +878,14 @@ static void processSinkOrphan(node_t *orphan)
                     parent_edge = node->parent_edge;
                     distance++;
 
-                    if (parent_edge == TERMINAL_EDGE) 
+                    if (parent_edge == &TERMINAL_EDGE)
                     {
                         node->timestamp = time;
                         node->distance = 1;
                         break;
                     }
 
-                    if (parent_edge == ORPHAN_EDGE) 
+                    if (parent_edge == &ORPHAN_EDGE)
                     {
                         distance = UINT32_MAX;
                         break;
@@ -881,12 +936,12 @@ static void processSinkOrphan(node_t *orphan)
 
             if (node->is_in_sink && parent_edge != NULL) 
             {
-                if (orphan_edge->residual_capacity != 0)
+                if (edgeHasResidualCapacity(orphan_edge))
                 {
                     setNodeActive(node);
                 }
 
-                if (parent_edge != TERMINAL_EDGE && parent_edge != ORPHAN_EDGE && parent_edge->head == orphan)
+                if (parent_edge != &TERMINAL_EDGE && parent_edge != &ORPHAN_EDGE && parent_edge->head == orphan)
                 {
                     addOrphanAtBack(node);
                 }
@@ -954,9 +1009,8 @@ float computeMaximumFlow(bool reuse_trees, uint32_t *changed_nodes, uint32_t *nu
 			// grow source tree
 			for (edge = active_node->first_outgoing_edge; edge != NULL; edge = edge->next) 
 			{
-				if (edge->residual_capacity != 0) 
+				if (edgeHasResidualCapacity(edge))
 				{
-
 					node_t *head_node = edge->head;
 
 					if (head_node->parent_edge == NULL) 
@@ -995,7 +1049,7 @@ float computeMaximumFlow(bool reuse_trees, uint32_t *changed_nodes, uint32_t *nu
 			// active_node is in sink, grow sink tree
 			for (edge = active_node->first_outgoing_edge; edge != NULL; edge = edge->next) 
 			{
-				if (((edge_t *)edge->sister_edge)->residual_capacity != 0) 
+				if (edgeHasResidualCapacity(edge->sister_edge))
 				{
 					node_t *head_node = edge->head;
 
@@ -1093,4 +1147,14 @@ float computeMaximumFlow(bool reuse_trees, uint32_t *changed_nodes, uint32_t *nu
 	}
 
 	return total_flow;
+}
+
+static bool edgeHasResidualCapacity(edge_t *edge)
+{
+    return (edge->residual_capacity > DELTA || edge->residual_capacity < -DELTA);
+}
+
+static bool nodeHasResidualCapacity(node_t *node)
+{
+    return (node->residual_capacity > DELTA || node->residual_capacity < -DELTA);
 }

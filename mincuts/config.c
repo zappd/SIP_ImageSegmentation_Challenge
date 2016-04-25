@@ -1,4 +1,4 @@
-#include <strings.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "config.h"
@@ -22,7 +22,7 @@ void readConfig(const char * fn)
 
     while(fgets(line,sizeof(line),fp)!=NULL)
     {
-      tokenKey=strtok(line,"\t =\n\r");  
+      tokenKey=strtok(line,"\t =\n\r");
       if(tokenKey!=NULL && tokenKey[0]!='#')
       {
         tokenValue=strtok(NULL,"\t =\n\r");
