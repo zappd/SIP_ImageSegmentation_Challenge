@@ -16,7 +16,14 @@ struct gconf gconf = {
   .inputData="data.data",
   .nx=64,
   .ny=64,
-  .nw=64
+  .nw=64,
+  .sigma=0.1,
+  .evcrit=0.333,
+  .t=600,
+  .maxevfact=8 ,
+  .kcent=16,
+  .krep=8,
+  .kiter=200
 };
 
 int main(int argc, char* argv[])
