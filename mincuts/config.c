@@ -1,4 +1,4 @@
-#include <string.h>
+#include <strings.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "config.h"
@@ -22,7 +22,7 @@ void readConfig(const char * fn)
 
     while(fgets(line,sizeof(line),fp)!=NULL)
     {
-      tokenKey=strtok(line,"\t =\n\r");
+      tokenKey=strtok(line,"\t =\n\r");  
       if(tokenKey!=NULL && tokenKey[0]!='#')
       {
         tokenValue=strtok(NULL,"\t =\n\r");
@@ -34,15 +34,43 @@ void readConfig(const char * fn)
         } 
         else if(strcasecmp(tokenKey,"nx")==0)
         {
-          gconf.nx=strtol(tokenValue,NULL,10);
+          gconf.nx=(int)strtol(tokenValue,NULL,10);
         }
         else if(strcasecmp(tokenKey,"ny")==0)
         {
-          gconf.ny=strtol(tokenValue,NULL,10);
+          gconf.ny=(int)strtol(tokenValue,NULL,10);
         }
         else if(strcasecmp(tokenKey,"nw")==0)
         {
-          gconf.nw=strtol(tokenValue,NULL,10);
+          gconf.nw=(int)strtol(tokenValue,NULL,10);
+        }
+        else if(strcasecmp(tokenKey,"sigma")==0)
+        {
+          gconf.sigma=strtof(tokenValue,NULL);
+        }
+        else if(strcasecmp(tokenKey,"evcrit")==0)
+        {
+          gconf.evcrit=strtof(tokenValue,NULL);
+        }
+        else if(strcasecmp(tokenKey,"t")==0)
+        {
+          gconf.t=(int)strtol(tokenValue,NULL,10);
+        }
+        else if(strcasecmp(tokenKey,"maxevfact")==0)
+        {
+          gconf.maxevfact=strtof(tokenValue,NULL);
+        }
+        else if(strcasecmp(tokenKey,"krep")==0)
+        {
+          gconf.krep=(int)strtol(tokenValue,NULL,10);
+        }
+        else if(strcasecmp(tokenKey,"kiter")==0)
+        {
+          gconf.kiter=(int)strtol(tokenValue,NULL,10);
+        }
+        else if(strcasecmp(tokenKey,"kcent")==0)
+        {
+          gconf.kcent=(int)strtol(tokenValue,NULL,10);
         }
         else
         {
@@ -56,10 +84,20 @@ void readConfig(const char * fn)
 
 void printConfig(void)
 {
-  fprintf(stderr, "Run configuration\n"
+  fprintf(stderr, "Runtime configuration\n"
       "\t inputData: %s\n"
-      "\t nx: %ld\n"
-      "\t ny: %ld\n"
-      "\t nw: %ld\n",
-      gconf.inputData,gconf.nx,gconf.ny,gconf.nw);
+      "\t nx: %d\n"
+      "\t ny: %d\n"
+      "\t nw: %d\n"
+      "\t sigma: %f\n"
+      "\t evcrit: %f\n"
+      "\t maxevfact: %f\n"
+      "\t t: %d\n"
+      "\t krep: %d\n"
+      "\t kiter: %d\n"
+      "\t kcent: %d\n\n",
+      gconf.inputData,gconf.nx,gconf.ny,
+      gconf.nw,gconf.sigma,gconf.evcrit,
+      gconf.maxevfact,gconf.t,gconf.krep,
+      gconf.kiter,gconf.kcent);
 }

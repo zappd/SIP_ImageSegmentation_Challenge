@@ -1,9 +1,30 @@
-#datafile
-inputData=testdata.dat
+#Datafile
+inputData=../prototyping/diffusedcube.data
 
-nx=600
-ny=480
-#number of wavenumbers
-nw=128
+#Dimensions
+nx=32
+ny=32
 
+#Number of wavenumbers
+nw=1
 
+#Std for the affinity function
+sigma=0.1
+
+#Minimum eigenvalues
+evcrit=0.993
+
+#Markov time
+t=600
+
+#1/maxevfact: percentage of total eigenvectors expected to keep
+maxevfact=128
+
+#number of times to repeat kmeans to find best global min
+krep=8
+
+#maximimum iterations for kmeans
+kiter=400
+
+#number of centers for kmeans
+kcent=30

@@ -5,9 +5,16 @@
 struct gconf
 {
   char inputData[256];
-  long nx;
-  long ny;
-  long nw;
+  int nx;
+  int ny;
+  int nw;
+  float sigma;
+  float evcrit;
+  int t;
+  float maxevfact;
+  int krep;
+  int kiter;
+  int kcent;
 };
 
 extern struct gconf gconf;
