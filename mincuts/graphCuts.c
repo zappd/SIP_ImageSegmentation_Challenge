@@ -5,6 +5,22 @@
 
 #include "graphCuts.h"
 
+/*
+ * This code implements in C a Java solution to the Max-Flow Min-Cut problem
+ * this implementation can be found here:
+ * https://github.com/joshchang/graphcuts
+ *
+ * The idea behind the algorithm comes from the implementation provided by
+ * Kolmogorov and Boykov: MAXFLOW version 3.01
+ *
+ * "An Experimental Comparison of Min-Cut/Max-Flow Algorithms for Energy
+ *	Minimization in Vision."
+ *	Yuri Boykov and Vladimir Kolmogorov.
+ *	In IEEE Transactions on Pattern Analysis and Machine Intelligence
+ *	(PAMI), September 2004
+ *
+ */
+
 
 /********************************
  * Functions

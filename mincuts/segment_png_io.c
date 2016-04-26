@@ -3,6 +3,11 @@
 #include <stdint.h>
 #include "segment_png_io.h"
 
+/*
+ * Based Heavily on the PNG writing implementation found here:
+ * http://www.lemoda.net/c/write-png/
+ */
+
 
 /********************************
  * Functions
