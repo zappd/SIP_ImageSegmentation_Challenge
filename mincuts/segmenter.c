@@ -6,7 +6,7 @@
 
 #include "segmenter.h"
 #include "graphCuts.h"
-
+#include "segment_png_io.h"
 
 /********************************
  * Definitions
@@ -43,24 +43,22 @@ static float *band_averages;
 static uint32_t **segment_ids;
 static uint32_t **node_ids;
 
-void recursivelySegment(float ***image_cube, image_info_t *image_info)
+void recursivelySegment(float ***image_cube, image_info_t *image_info, char *segment_image_file_path)
 {
     lines = image_info->lines;
     samples = image_info->samples;
     bands = image_info->bands;
 
-    clock_t start_time;
-
     initializeSegmenter();
-
-    // START: Get Nodes in segment
-    start_time = clock();
 
     calculateEdgeWeights(image_cube);
 
     segment(image_cube, 0);
 
-    printf("Total Time: %0.3f ms\n", (((double) (clock() - start_time)) / CLOCKS_PER_SEC) * 1000);
+    if (segment_image_file_path != NULL)
+    {
+        writeSegmentImage(segment_ids, segment_image_file_path, lines, samples);
+    }
 
     deallocateSegmenter();
 }
@@ -288,10 +286,7 @@ static void calculateEdgeWeights(float ***image_cube)
                     distance += sqrtf( fabsf(X_OFFSETS[offset_index]) + fabsf(Y_OFFSETS[offset_index]) ) * powf(image_cube[line + X_OFFSETS[offset_index]][sample + Y_OFFSETS[offset_index]][band] - image_cube[line][sample][band], 2);
                 }
 
-                distance = powf(distance, 0.2);
-                edge_weights[line][sample][offset_index] = powf( 1.005 , (-1) * distance );
-
-                // printf("Distance: %.5f\n", edge_weights[line][sample][offset_index]);
+                edge_weights[line][sample][offset_index] = powf( 1.005 , (-1) * powf(distance, 0.2) );
             }
         }
     }
