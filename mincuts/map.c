@@ -1,4 +1,6 @@
 #include "map.h"
+#include "config.h"
+
 
 void collapseHyperspectralMeans( float * img, float *** specimg, image_info_t * info)
 {
@@ -22,3 +24,21 @@ void collapseHyperspectralMeans( float * img, float *** specimg, image_info_t * 
   }
 }
 
+void normalizeMap(float * map)
+{
+  int i;
+  double sum=0,sumsq=0;
+
+  for(i=0;i<gconf.nx*gconf.ny;i++)
+  {
+    sum+=map[i]/(gconf.nx*gconf.ny);
+    sumsq+=map[i]*map[i]/(gconf.nx*gconf.ny);
+  }
+
+  for(i=0;i<gconf.nx*gconf.ny;i++)
+  {
+    map[i]-=sum;
+    map[i]/=sqrt(sumsq-sum*sum);
+  }
+
+}
