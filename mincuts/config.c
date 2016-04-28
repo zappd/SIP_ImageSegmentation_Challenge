@@ -60,6 +60,14 @@ void readConfig(const char * fn)
         {
           gconf.maxevfact=strtof(tokenValue,NULL);
         }
+        else if(strcasecmp(tokenKey,"kelbw")==0)
+        {
+          gconf.kelbw=strtof(tokenValue,NULL);
+        }
+        else if(strcasecmp(tokenKey,"taucardinality")==0)
+        {
+          gconf.taucardinality=strtof(tokenValue,NULL);
+        }
         else if(strcasecmp(tokenKey,"krep")==0)
         {
           gconf.krep=(int)strtol(tokenValue,NULL,10);
@@ -70,7 +78,15 @@ void readConfig(const char * fn)
         }
         else if(strcasecmp(tokenKey,"kcent")==0)
         {
-          gconf.kcent=(int)strtol(tokenValue,NULL,10);
+          gconf.kcent=strtof(tokenValue,NULL);
+        }
+        else if(strcasecmp(tokenKey,"verbosity")==0)
+        {
+          gconf.verbosity=(int)strtol(tokenValue,NULL,10);
+        }
+        else if(strcasecmp(tokenKey,"cardmin")==0)
+        {
+          gconf.cardmin=(int)strtol(tokenValue,NULL,10);
         }
         else
         {
@@ -95,9 +111,15 @@ void printConfig(void)
       "\t t: %d\n"
       "\t krep: %d\n"
       "\t kiter: %d\n"
-      "\t kcent: %d\n\n",
+      "\t kcent: %d\n"
+      "\t verbosity: %d\n"
+      "\t taucardinality: %f\n"
+      "\t kelbw: %f\n"
+      "\t cardmin: %d\n\n",
       gconf.inputData,gconf.nx,gconf.ny,
       gconf.nw,gconf.sigma,gconf.evcrit,
       gconf.maxevfact,gconf.t,gconf.krep,
-      gconf.kiter,gconf.kcent);
+      gconf.kiter,gconf.kcent,gconf.verbosity,
+      gconf.taucardinality,gconf.kelbw,
+      gconf.cardmin);
 }

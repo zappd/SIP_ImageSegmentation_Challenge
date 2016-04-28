@@ -1,7 +1,15 @@
 #if !defined(_SE_H)
 #define _SE_H
+#include "seeds.h"
 
-void setSpectralSeeds(float * data, int * O);
+void setSpectralSeeds(float * data, int * O, seed_region_t * );
+
+static void setMinimumCardinality(float *, int *);
+
+static float findThresholdOverlay(float * , int * );
+static void setThresholdOverlay(float * , int * , float);
+static void setSeedCentroids(int * , float * , float * , int );
+static int setUniqueOrderedIndices(int *);
 
 static void writeIntermediate(float *, size_t, const char *);
 static void readIntermediate(float *, size_t, const char *);

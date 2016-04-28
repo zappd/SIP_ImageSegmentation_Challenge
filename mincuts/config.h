@@ -15,6 +15,10 @@ struct gconf
   int krep;
   int kiter;
   int kcent;
+  int verbosity;
+  float taucardinality;
+  float kelbw;
+  int cardmin;
 };
 
 extern struct gconf gconf;
