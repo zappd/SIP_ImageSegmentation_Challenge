@@ -62,7 +62,7 @@ static bool nodeHasResidualCapacity(node_t *node);
  * Global Vars
  ********************************/
 
-static edge_t ORPHAN_EDGE = {0};
+static edge_t ORPHAN_EDGE   = {0};
 static edge_t TERMINAL_EDGE = {0};
 
 // number of nodes in the graph
@@ -105,7 +105,6 @@ static node_t *node_queue_2_head = NULL;
 static node_t *node_queue_2_tail = NULL;
 
 
-
 void initializeGraph(uint32_t num_nodes, uint32_t num_edges)
 {
     number_of_nodes = num_nodes;
@@ -127,7 +126,7 @@ void initializeGraph(uint32_t num_nodes, uint32_t num_edges)
     if (nodes == NULL)
     {
         // if this is the first time around, allocate memory
-        nodes = (node_t *)malloc(number_of_nodes * sizeof(node_t));
+        nodes = (node_t *) malloc(number_of_nodes * sizeof(node_t));
 
         nodes_size = number_of_nodes;
     }
@@ -135,7 +134,7 @@ void initializeGraph(uint32_t num_nodes, uint32_t num_edges)
     {
         // if this is not the first time around, and we need more memory,
         // reallocate memory
-        realloc(nodes, (number_of_edges * 2) * sizeof(edge_t));
+        nodes      = realloc(nodes, (number_of_edges * 2) * sizeof(edge_t));
         nodes_size = number_of_nodes;
     }
 
@@ -143,7 +142,7 @@ void initializeGraph(uint32_t num_nodes, uint32_t num_edges)
     if (edges == NULL)
     {
         // if this is the first time around, allocate memory
-        edges = (edge_t *)malloc((number_of_edges * 2) * sizeof(edge_t));
+        edges = (edge_t *) malloc((number_of_edges * 2) * sizeof(edge_t));
 
         edges_size = number_of_edges;
     }
@@ -151,7 +150,7 @@ void initializeGraph(uint32_t num_nodes, uint32_t num_edges)
     {
         // if this is not the first time around, and we need more memory,
         // reallocate memory
-        realloc(edges, (number_of_edges * 2) * sizeof(edge_t));
+        edges = realloc(edges, (number_of_edges * 2) * sizeof(edge_t));
 
         edges_size = number_of_edges;
     }
@@ -202,7 +201,8 @@ void setTerminalWeights(uint32_t node_id, float source, float sink)
  * @param weight_from The weight (i.e., the cost) of the directed edge from node1 to node2.
  * @param weight_to The weight (i.e., the cost) of the directed edge from node2 to node1.
  */
-void setEdgeWeight(uint32_t node_id_1, uint32_t node_id_2, float weight_to, float weight_from) {
+void setEdgeWeight(uint32_t node_id_1, uint32_t node_id_2, float weight_to, float weight_from)
+{
     assert(node_id_1 >= 0 && node_id_1 < number_of_nodes);
     assert(node_id_2 >= 0 && node_id_2 < number_of_nodes);
     assert(node_id_1 != node_id_2);
@@ -211,7 +211,7 @@ void setEdgeWeight(uint32_t node_id_1, uint32_t node_id_2, float weight_to, floa
     assert(current_edge_number < (number_of_edges - 2));
 
     // create new edges
-    edge_t *edge_to = &edges[current_edge_number++];
+    edge_t *edge_to   = &edges[current_edge_number++];
     edge_t *edge_from = &edges[current_edge_number++];
 
     // get corresponding nodes
@@ -220,23 +220,23 @@ void setEdgeWeight(uint32_t node_id_1, uint32_t node_id_2, float weight_to, floa
 
 
     // link edges
-    edge_to->sister_edge = edge_from;
+    edge_to->sister_edge   = edge_from;
     edge_from->sister_edge = edge_to;
 
     // add node1 to edge
-    edge_to->next = (edge_t *)node_1->first_outgoing_edge;
+    edge_to->next               = (edge_t *) node_1->first_outgoing_edge;
     node_1->first_outgoing_edge = edge_to;
 
     // add node2 to reverseEdge
-    edge_from->next = (edge_t *)node_2->first_outgoing_edge;
+    edge_from->next             = (edge_t *) node_2->first_outgoing_edge;
     node_2->first_outgoing_edge = edge_from;
 
     // set targets of edges
-    edge_to->head = node_2;
+    edge_to->head   = node_2;
     edge_from->head = node_1;
 
     // set residual capacities
-    edge_to->residual_capacity = weight_to;
+    edge_to->residual_capacity   = weight_to;
     edge_from->residual_capacity = weight_from;
 }
 
@@ -254,7 +254,7 @@ bool getTerminal(uint32_t node_id)
 
     node_t *node = &nodes[node_id];
 
-    return (node->parent_edge != NULL) ? node->is_in_sink : (bool)BACKGROUND;
+    return (node->parent_edge != NULL) ? node->is_in_sink : (bool) BACKGROUND;
 }
 
 
@@ -291,16 +291,17 @@ static node_t *getNextActiveNode()
 
     while (true)
     {
-        if ((node = node_queue_1_head) == NULL) {
+        if ((node = node_queue_1_head) == NULL)
+        {
 
             // queue 0 was empty, try other one
             node = node_queue_2_head;
 
             // swap queues
             node_queue_1_head = node_queue_2_head;
-            node_queue_1_tail  = node_queue_2_tail;
+            node_queue_1_tail = node_queue_2_tail;
             node_queue_2_head = NULL;
-            node_queue_2_tail  = NULL;
+            node_queue_2_tail = NULL;
 
             // if other queue was emtpy as well, return null
             if (node == NULL)
@@ -310,10 +311,11 @@ static node_t *getNextActiveNode()
         }
 
         // remove current node from active list
-        if (node->next == node) {
+        if (node->next == node)
+        {
             // this was the last one
             node_queue_1_head = NULL;
-            node_queue_1_tail  = NULL;
+            node_queue_1_tail = NULL;
         }
         else
         {
@@ -330,7 +332,6 @@ static node_t *getNextActiveNode()
         }
     }
 }
-
 
 
 /**********************************************
@@ -362,12 +363,12 @@ static void clearOrphanList(void)
 {
     if (orphan_head_node == NULL)
     {
-    	orphan_head_node = (orphan_t *)calloc(1, sizeof(orphan_t));
-    	orphan_tail_node = orphan_head_node;
+        orphan_head_node = (orphan_t *) calloc(1, sizeof(orphan_t));
+        orphan_tail_node = orphan_head_node;
     }
 
     orphan_t *current_orphan = orphan_head_node->next;
-    orphan_t *next_orphan = NULL;
+    orphan_t *next_orphan    = NULL;
 
     while (current_orphan != NULL)
     {
@@ -389,8 +390,8 @@ static void addOrphanToFrontOfQueue(node_t *node)
 {
     if (orphan_head_node == NULL)
     {
-    	orphan_head_node = (orphan_t *)calloc(1, sizeof(orphan_t));
-    	orphan_tail_node = orphan_head_node;
+        orphan_head_node = (orphan_t *) calloc(1, sizeof(orphan_t));
+        orphan_tail_node = orphan_head_node;
     }
 
     if (orphan_head_node->this == NULL)
@@ -401,9 +402,9 @@ static void addOrphanToFrontOfQueue(node_t *node)
     else
     {
         orphan_t *old_head_node = orphan_head_node;
-        orphan_head_node = (orphan_t *)calloc(1, sizeof(orphan_t));
-        orphan_head_node->this = node;
-        orphan_head_node->next = old_head_node;
+        orphan_head_node = (orphan_t *) calloc(1, sizeof(orphan_t));
+        orphan_head_node->this  = node;
+        orphan_head_node->next  = old_head_node;
         old_head_node->previous = orphan_head_node;
     }
 }
@@ -412,8 +413,8 @@ static void addOrphanToBackOfQueue(node_t *node)
 {
     if (orphan_head_node == NULL)
     {
-    	orphan_head_node = (orphan_t *)calloc(1, sizeof(orphan_t));
-    	orphan_tail_node = orphan_head_node;
+        orphan_head_node = (orphan_t *) calloc(1, sizeof(orphan_t));
+        orphan_tail_node = orphan_head_node;
     }
 
     if (orphan_tail_node->this == NULL)
@@ -425,10 +426,10 @@ static void addOrphanToBackOfQueue(node_t *node)
     else
     {
         orphan_t *old_tail_node = orphan_tail_node;
-        orphan_tail_node = (orphan_t *)calloc(1, sizeof(orphan_t));
-        orphan_tail_node->this = node;
+        orphan_tail_node = (orphan_t *) calloc(1, sizeof(orphan_t));
+        orphan_tail_node->this     = node;
         orphan_head_node->previous = old_tail_node;
-        old_tail_node->next = orphan_tail_node;
+        old_tail_node->next        = orphan_tail_node;
     }
 }
 
@@ -436,8 +437,8 @@ static node_t *pollOrphanQueue(void)
 {
     if (orphan_head_node == NULL)
     {
-    	orphan_head_node = (orphan_t *)calloc(1, sizeof(orphan_t));
-    	orphan_tail_node = orphan_head_node;
+        orphan_head_node = (orphan_t *) calloc(1, sizeof(orphan_t));
+        orphan_tail_node = orphan_head_node;
     }
 
     node_t *polled_node = orphan_head_node->this;
@@ -451,7 +452,7 @@ static node_t *pollOrphanQueue(void)
     else
     {
         // preserve the head / tail node, jus clear it out
-        *orphan_head_node = (orphan_t){.this = NULL, .previous = NULL, .next = NULL};
+        *orphan_head_node = (orphan_t) {.this = NULL, .previous = NULL, .next = NULL};
     }
 
     return polled_node;
@@ -467,7 +468,7 @@ static node_t *pollOrphanQueue(void)
  *
  * Only called if reuse_trees is false.
  */
-static void initializeMaxFlow() 
+static void initializeMaxFlow()
 {
     node_queue_1_head = NULL;
     node_queue_1_tail = NULL;
@@ -479,30 +480,30 @@ static void initializeMaxFlow()
     clearOrphanList();
 
     uint32_t i;
-    node_t *node;
+    node_t   *node;
     for (i = 0; i < number_of_nodes; i++)
     {
         node = &nodes[i];
 
-        node->next = NULL;
-        node->is_marked = false;
+        node->next               = NULL;
+        node->is_marked          = false;
         node->is_in_changed_list = false;
-        node->timestamp = time;
+        node->timestamp          = time;
 
         if (node->residual_capacity > DELTA)
         {
             // node is connected to source
-            node->is_in_sink = false;
+            node->is_in_sink  = false;
             node->parent_edge = &TERMINAL_EDGE;
-            node->distance = 1;
+            node->distance    = 1;
 
             setNodeActive(node);
         }
         else if (node->residual_capacity < -DELTA)
         {
-            node->is_in_sink = true;
+            node->is_in_sink  = true;
             node->parent_edge = &TERMINAL_EDGE;
-            node->distance = 1;
+            node->distance    = 1;
             setNodeActive(node);
         }
         else
@@ -518,7 +519,7 @@ static void initializeMaxFlow()
  *
  * Only called if reuse_trees is true.
  */
-static void initializeMaxFlowAndReuseTrees() 
+static void initializeMaxFlowAndReuseTrees()
 {
 
     node_t *node_1 = NULL;
@@ -546,7 +547,7 @@ static void initializeMaxFlowAndReuseTrees()
             queue_start = NULL;
         }
 
-        node_1->next = NULL;
+        node_1->next      = NULL;
         node_1->is_marked = false;
 
         setNodeActive(node_1);
@@ -579,8 +580,8 @@ static void initializeMaxFlowAndReuseTrees()
                         }
 
                         if (node_2->parent_edge != NULL &&
-                                node_2->is_in_sink &&
-                                edge->residual_capacity > DELTA)
+                            node_2->is_in_sink &&
+                            edge->residual_capacity > DELTA)
                         {
                             setNodeActive(node_2);
                         }
@@ -606,8 +607,8 @@ static void initializeMaxFlowAndReuseTrees()
                     }
 
                     if (node_2->parent_edge != NULL &&
-                            !node_2->is_in_sink &&
-                            edge->sister_edge > 0)
+                        !node_2->is_in_sink &&
+                        edge->sister_edge > 0)
                     {
                         setNodeActive(node_2);
                     }
@@ -618,8 +619,8 @@ static void initializeMaxFlowAndReuseTrees()
         }
 
         node_1->parent_edge = &TERMINAL_EDGE;
-        node_1->timestamp = time;
-        node_1->distance = 1;
+        node_1->timestamp   = time;
+        node_1->distance    = 1;
     }
 
     // adoption
@@ -645,7 +646,7 @@ static void initializeMaxFlowAndReuseTrees()
  *
  * This is done whenever a path between the source and the sink was found.
  */
-static void augment(edge_t *middle_edge) 
+static void augment(edge_t *middle_edge)
 {
     node_t *node;
     edge_t *edge;
@@ -657,17 +658,17 @@ static void augment(edge_t *middle_edge)
     // 1a - the source tree
     bottleneck = middle_edge->residual_capacity;
 
-    for (node = ((edge_t *)middle_edge->sister_edge)->head; ; node = edge->head)
+    for (node = ((edge_t *) middle_edge->sister_edge)->head; ; node = edge->head)
     {
         edge = node->parent_edge;
 
         if (edge == &TERMINAL_EDGE)
-		{
-            break;
-    	}
-        if (bottleneck > ((edge_t *)edge->sister_edge)->residual_capacity)
         {
-            bottleneck = ((edge_t *)edge->sister_edge)->residual_capacity;
+            break;
+        }
+        if (bottleneck > ((edge_t *) edge->sister_edge)->residual_capacity)
+        {
+            bottleneck = ((edge_t *) edge->sister_edge)->residual_capacity;
         }
     }
 
@@ -677,7 +678,8 @@ static void augment(edge_t *middle_edge)
     }
 
     // 1b - the sink tree
-    for (node = middle_edge->head; ; node = edge->head) {
+    for (node = middle_edge->head; ; node = edge->head)
+    {
 
         edge = node->parent_edge;
 
@@ -700,20 +702,22 @@ static void augment(edge_t *middle_edge)
     // 2. augmenting
 
     // 2a - the source tree
-    ((edge_t *)middle_edge->sister_edge)->residual_capacity += bottleneck;
+    ((edge_t *) middle_edge->sister_edge)->residual_capacity += bottleneck;
     middle_edge->residual_capacity -= bottleneck;
 
-    for (node = ((edge_t *)middle_edge->sister_edge)->head; ; node = edge->head) {
+    for (node = ((edge_t *) middle_edge->sister_edge)->head; ; node = edge->head)
+    {
 
         edge = node->parent_edge;
 
-        if (edge == &TERMINAL_EDGE) {
+        if (edge == &TERMINAL_EDGE)
+        {
             // end of path
             break;
         }
 
         edge->residual_capacity += bottleneck;
-        ((edge_t *)edge->sister_edge)->residual_capacity -= bottleneck;
+        ((edge_t *) edge->sister_edge)->residual_capacity -= bottleneck;
 
         if (!edgeHasResidualCapacity(edge->sister_edge))
         {
@@ -721,15 +725,15 @@ static void augment(edge_t *middle_edge)
         }
     }
 
-	node->residual_capacity -= bottleneck;
-    
+    node->residual_capacity -= bottleneck;
+
     if (!nodeHasResidualCapacity(node))
     {
         addOrphanAtFront(node);
     }
 
     // 2b - the sink tree
-    for (node = middle_edge->head; ; node = edge->head) 
+    for (node = middle_edge->head; ; node = edge->head)
     {
         edge = node->parent_edge;
 
@@ -739,8 +743,8 @@ static void augment(edge_t *middle_edge)
             break;
         }
 
-	    ((edge_t *)edge->sister_edge)->residual_capacity += bottleneck;
-	    edge->residual_capacity -= bottleneck;
+        ((edge_t *) edge->sister_edge)->residual_capacity += bottleneck;
+        edge->residual_capacity -= bottleneck;
 
         if (!edgeHasResidualCapacity(edge))
         {
@@ -761,9 +765,9 @@ static void augment(edge_t *middle_edge)
 /**
  * Adopt an orphan.
  */
-static void processSourceOrphan(node_t *orphan) 
+static void processSourceOrphan(node_t *orphan)
 {
-    edge_t *best_edge = NULL;
+    edge_t *best_edge   = NULL;
     edge_t *orphan_edge = NULL;
 
     uint32_t min_distance = UINT32_MAX;
@@ -772,31 +776,33 @@ static void processSourceOrphan(node_t *orphan)
     {
         if (edgeHasResidualCapacity(orphan_edge->sister_edge))
         {
-            node_t *node = orphan_edge->head;
+            node_t *node        = orphan_edge->head;
             edge_t *parent_edge = node->parent_edge;
 
-            if (!node->is_in_sink && parent_edge != NULL) 
+            if (!node->is_in_sink && parent_edge != NULL)
             {
                 // check the origin of node
                 uint32_t distance = 0;
                 while (true)
                 {
-                    if (node->timestamp == time) 
+                    if (node->timestamp == time)
                     {
                         distance += node->distance;
                         break;
                     }
-                    
+
                     parent_edge = node->parent_edge;
                     distance++;
 
-                    if (parent_edge == &TERMINAL_EDGE) {
+                    if (parent_edge == &TERMINAL_EDGE)
+                    {
                         node->timestamp = time;
-                        node->distance = 1;
+                        node->distance  = 1;
                         break;
                     }
 
-                    if (parent_edge == &ORPHAN_EDGE) {
+                    if (parent_edge == &ORPHAN_EDGE)
+                    {
                         distance = UINT32_MAX;
                         break;
                     }
@@ -806,20 +812,20 @@ static void processSourceOrphan(node_t *orphan)
                 }
 
                 if (distance < UINT32_MAX)
-                { 
-                // node originates from the source
+                {
+                    // node originates from the source
 
-                    if (distance < UINT32_MAX) 
+                    if (distance < UINT32_MAX)
                     {
-                        best_edge = orphan_edge;
+                        best_edge    = orphan_edge;
                         min_distance = distance;
                     }
 
                     // set marks along the path
-                    for (node = orphan_edge->head; node->timestamp != time; node = ((edge_t *)node->parent_edge)->head) 
+                    for (node = orphan_edge->head; node->timestamp != time; node = ((edge_t *) node->parent_edge)->head)
                     {
                         node->timestamp = time;
-                        node->distance = distance;
+                        node->distance  = distance;
                         distance--;
                     }
                 }
@@ -829,23 +835,24 @@ static void processSourceOrphan(node_t *orphan)
 
     orphan->parent_edge = best_edge;
 
-    if (best_edge != NULL) 
+    if (best_edge != NULL)
     {
         orphan->timestamp = time;
-        orphan->distance = min_distance + 1;
-    } 
+        orphan->distance  = min_distance + 1;
+    }
     else
     {
         // no parent found
         addToChangedList(orphan);
 
         // process neighbors
-        for (orphan_edge = orphan->first_outgoing_edge; orphan_edge != NULL; orphan_edge = orphan_edge->next) {
+        for (orphan_edge = orphan->first_outgoing_edge; orphan_edge != NULL; orphan_edge = orphan_edge->next)
+        {
 
-            node_t *node = orphan_edge->head;
+            node_t *node        = orphan_edge->head;
             edge_t *parent_edge = node->parent_edge;
 
-            if (!node->is_in_sink && parent_edge != NULL) 
+            if (!node->is_in_sink && parent_edge != NULL)
             {
                 if (edgeHasResidualCapacity(orphan_edge->sister_edge))
                 {
@@ -864,28 +871,29 @@ static void processSourceOrphan(node_t *orphan)
 /**
  * Adopt an orphan.
  */
-static void processSinkOrphan(node_t *orphan) 
+static void processSinkOrphan(node_t *orphan)
 {
-    edge_t *best_edge = NULL;
+    edge_t *best_edge   = NULL;
     edge_t *orphan_edge = NULL;
 
     uint32_t min_distance = UINT32_MAX;
 
     for (orphan_edge = orphan->first_outgoing_edge; orphan_edge != NULL; orphan_edge = orphan_edge->next)
     {
-        if (edgeHasResidualCapacity(orphan_edge)) {
+        if (edgeHasResidualCapacity(orphan_edge))
+        {
 
-            node_t *node = orphan_edge->head;
+            node_t *node        = orphan_edge->head;
             edge_t *parent_edge = node->parent_edge;
 
-            if (node->is_in_sink && parent_edge != NULL) 
+            if (node->is_in_sink && parent_edge != NULL)
             {
                 // check the origin of node
                 uint32_t distance = 0;
 
-                while (true) 
+                while (true)
                 {
-                    if (node->timestamp == time) 
+                    if (node->timestamp == time)
                     {
                         distance += node->distance;
                         break;
@@ -897,7 +905,7 @@ static void processSinkOrphan(node_t *orphan)
                     if (parent_edge == &TERMINAL_EDGE)
                     {
                         node->timestamp = time;
-                        node->distance = 1;
+                        node->distance  = 1;
                         break;
                     }
 
@@ -911,20 +919,20 @@ static void processSinkOrphan(node_t *orphan)
                     node = parent_edge->head;
                 }
 
-                if (distance < UINT32_MAX) 
+                if (distance < UINT32_MAX)
                 {
                     // node originates from the sink
-                    if (distance < min_distance) 
+                    if (distance < min_distance)
                     {
-                        best_edge = orphan_edge;
+                        best_edge    = orphan_edge;
                         min_distance = distance;
                     }
 
                     // set marks along the path
-                    for (node = orphan_edge->head; node->timestamp != time; node = ((edge_t *)node->parent_edge)->head) 
+                    for (node = orphan_edge->head; node->timestamp != time; node = ((edge_t *) node->parent_edge)->head)
                     {
                         node->timestamp = time;
-                        node->distance = distance;
+                        node->distance  = distance;
                         distance--;
                     }
                 }
@@ -934,23 +942,23 @@ static void processSinkOrphan(node_t *orphan)
 
     orphan->parent_edge = best_edge;
 
-    if (best_edge != NULL) 
+    if (best_edge != NULL)
     {
         orphan->timestamp = time;
-        orphan->distance = min_distance + 1;
-    } 
-    else 
+        orphan->distance  = min_distance + 1;
+    }
+    else
     {
         // no parent found
         addToChangedList(orphan);
 
         // process neighbors
-    	for (orphan_edge = orphan->first_outgoing_edge; orphan_edge != NULL; orphan_edge = orphan_edge->next)
-    	{
-            node_t *node = orphan_edge->head;
+        for (orphan_edge = orphan->first_outgoing_edge; orphan_edge != NULL; orphan_edge = orphan_edge->next)
+        {
+            node_t *node        = orphan_edge->head;
             edge_t *parent_edge = node->parent_edge;
 
-            if (node->is_in_sink && parent_edge != NULL) 
+            if (node->is_in_sink && parent_edge != NULL)
             {
                 if (edgeHasResidualCapacity(orphan_edge))
                 {
@@ -978,191 +986,192 @@ static void processSinkOrphan(node_t *orphan)
  */
 float computeMaximumFlow(bool reuse_trees, uint32_t *changed_nodes, uint32_t *number_changed_nodes)
 {
-	if (maxflow_iteration == 0)
-	{
-		reuse_trees = false;
-	}
+    if (maxflow_iteration == 0)
+    {
+        reuse_trees = false;
+    }
 
-	if (reuse_trees)
-	{
-		initializeMaxFlowAndReuseTrees();
-	}
-	else
-	{
-		initializeMaxFlow();
-	}
+    if (reuse_trees)
+    {
+        initializeMaxFlowAndReuseTrees();
+    }
+    else
+    {
+        initializeMaxFlow();
+    }
 
-	node_t *current_node = NULL;
-	edge_t *edge = NULL;
+    node_t *current_node = NULL;
+    edge_t *edge         = NULL;
 
-	// main loop
-	while (true) 
-	{
-		node_t *active_node = current_node;
+    // main loop
+    while (true)
+    {
+        node_t *active_node = current_node;
 
-		if (active_node != NULL) 
-		{
-			// remove active flag
-			active_node->next = NULL;
+        if (active_node != NULL)
+        {
+            // remove active flag
+            active_node->next = NULL;
 
-			if (active_node->parent_edge == NULL)
-			{
-				active_node = NULL;
-			}
-		}
-		if (active_node == NULL) 
-		{
-			if ((active_node = getNextActiveNode()) == NULL)
-			{
-				// no more active nodes - we're done here
-				break;
-			}
-		}
+            if (active_node->parent_edge == NULL)
+            {
+                active_node = NULL;
+            }
+        }
+        if (active_node == NULL)
+        {
+            if ((active_node = getNextActiveNode()) == NULL)
+            {
+                // no more active nodes - we're done here
+                break;
+            }
+        }
 
-		// groth
-		if (!active_node->is_in_sink) 
-		{
-			// grow source tree
-			for (edge = active_node->first_outgoing_edge; edge != NULL; edge = edge->next) 
-			{
-				if (edgeHasResidualCapacity(edge))
-				{
-					node_t *head_node = edge->head;
+        // groth
+        if (!active_node->is_in_sink)
+        {
+            // grow source tree
+            for (edge = active_node->first_outgoing_edge; edge != NULL; edge = edge->next)
+            {
+                if (edgeHasResidualCapacity(edge))
+                {
+                    node_t *head_node = edge->head;
 
-					if (head_node->parent_edge == NULL) 
-					{
-						// free node found, add to source tree
-						head_node->is_in_sink = false;
-						head_node->parent_edge = edge->sister_edge;
-						head_node->timestamp = active_node->timestamp;
+                    if (head_node->parent_edge == NULL)
+                    {
+                        // free node found, add to source tree
+                        head_node->is_in_sink  = false;
+                        head_node->parent_edge = edge->sister_edge;
+                        head_node->timestamp   = active_node->timestamp;
 
-						head_node->distance = active_node->distance + 1;
+                        head_node->distance = active_node->distance + 1;
 
-						setNodeActive(head_node);
-						addToChangedList(head_node);
+                        setNodeActive(head_node);
+                        addToChangedList(head_node);
 
-					}
-					else if (head_node->is_in_sink) 
-					{
-						// node is not free and belongs to other tree - path
-						// via edge found
-						break;
-					} 
-					else if (head_node->timestamp <= active_node->timestamp &&
-					         head_node->distance > active_node->distance) 
-					{
-						// node is not free and belongs to our tree - try to
-						// shorten its distance to the source
-						head_node->parent_edge = edge->sister_edge;
-						head_node->timestamp = active_node->timestamp;
-						head_node->distance = active_node->distance + 1;
-					}
-				}
-			}
-		} 
-		else
-		{
-			// active_node is in sink, grow sink tree
-			for (edge = active_node->first_outgoing_edge; edge != NULL; edge = edge->next) 
-			{
-				if (edgeHasResidualCapacity(edge->sister_edge))
-				{
-					node_t *head_node = edge->head;
+                    }
+                    else if (head_node->is_in_sink)
+                    {
+                        // node is not free and belongs to other tree - path
+                        // via edge found
+                        break;
+                    }
+                    else if (head_node->timestamp <= active_node->timestamp &&
+                             head_node->distance > active_node->distance)
+                    {
+                        // node is not free and belongs to our tree - try to
+                        // shorten its distance to the source
+                        head_node->parent_edge = edge->sister_edge;
+                        head_node->timestamp   = active_node->timestamp;
+                        head_node->distance    = active_node->distance + 1;
+                    }
+                }
+            }
+        }
+        else
+        {
+            // active_node is in sink, grow sink tree
+            for (edge = active_node->first_outgoing_edge; edge != NULL; edge = edge->next)
+            {
+                if (edgeHasResidualCapacity(edge->sister_edge))
+                {
+                    node_t *head_node = edge->head;
 
-					if (head_node->parent_edge == NULL) 
-					{
-						// free node found, add to sink tree
-						head_node->is_in_sink = true;
-						head_node->parent_edge = edge->sister_edge; // n.setParent(edge.getsister_edge());
-						head_node->timestamp = active_node->timestamp; // .setTimestamp(active_node.getTimestamp());
-						head_node->distance = active_node->distance + 1; // .setDistance(active_node.getDistance() + 1);
-						setNodeActive(head_node);
-						addToChangedList(head_node);
+                    if (head_node->parent_edge == NULL)
+                    {
+                        // free node found, add to sink tree
+                        head_node->is_in_sink  = true;
+                        head_node->parent_edge = edge->sister_edge; // n.setParent(edge.getsister_edge());
+                        head_node->timestamp   = active_node->timestamp; // .setTimestamp(active_node.getTimestamp());
+                        head_node->distance    =
+                                active_node->distance + 1; // .setDistance(active_node.getDistance() + 1);
+                        setNodeActive(head_node);
+                        addToChangedList(head_node);
 
-					} 
-					else if (!head_node->is_in_sink) 
-					{
-						// node is not free and belongs to other tree - path
-						// via edge's sister_edge found
-						edge = edge->sister_edge;
-						break;
+                    }
+                    else if (!head_node->is_in_sink)
+                    {
+                        // node is not free and belongs to other tree - path
+                        // via edge's sister_edge found
+                        edge = edge->sister_edge;
+                        break;
 
-					} 
-					else if (head_node->timestamp <= active_node->timestamp &&
-					         head_node->distance > active_node->distance) 
-					{
-						// node is not free and belongs to our tree - try to
-						// shorten its distance to the sink
-						head_node->parent_edge = edge->sister_edge;
-						head_node->timestamp = active_node->timestamp;
-						head_node->distance = active_node->distance + 1;
-					}
-				}
-			}
-		}
+                    }
+                    else if (head_node->timestamp <= active_node->timestamp &&
+                             head_node->distance > active_node->distance)
+                    {
+                        // node is not free and belongs to our tree - try to
+                        // shorten its distance to the sink
+                        head_node->parent_edge = edge->sister_edge;
+                        head_node->timestamp   = active_node->timestamp;
+                        head_node->distance    = active_node->distance + 1;
+                    }
+                }
+            }
+        }
 
-		time++;
+        time++;
 
-		if (edge != NULL) 
-		{
-			// we found a path via edge
+        if (edge != NULL)
+        {
+            // we found a path via edge
 
-			// set active flag
-			active_node->next = active_node;
-			current_node = active_node;
+            // set active flag
+            active_node->next = active_node;
+            current_node = active_node;
 
-			// augmentation
-			augment(edge);
+            // augmentation
+            augment(edge);
 
-			// adoption
-			node_t *orphan_node;
-			while ((orphan_node = pollOrphanQueue()) != NULL) 
-			{
-				if (orphan_node->is_in_sink)
-				{
-					processSinkOrphan(orphan_node);
-				}
-				else
-				{
-					processSourceOrphan(orphan_node);
-				}
-			}
-		} 
-		else 
-		{
-			// no path found
-			current_node = NULL;
-		}
-	}
+            // adoption
+            node_t *orphan_node;
+            while ((orphan_node = pollOrphanQueue()) != NULL)
+            {
+                if (orphan_node->is_in_sink)
+                {
+                    processSinkOrphan(orphan_node);
+                }
+                else
+                {
+                    processSourceOrphan(orphan_node);
+                }
+            }
+        }
+        else
+        {
+            // no path found
+            current_node = NULL;
+        }
+    }
 
-	maxflow_iteration++;
+    maxflow_iteration++;
 
-	// create list of changed nodes
-	if (changed_nodes != NULL)
-	{
-		free(changed_nodes);
+    // create list of changed nodes
+    if (changed_nodes != NULL)
+    {
+        free(changed_nodes);
 
-		*number_changed_nodes = 0;
+        *number_changed_nodes = 0;
 
-		uint32_t i, changed_index;
+        uint32_t i, changed_index;
 
-		for (i = 0; i < number_of_nodes; i++)
-		{
-			(*number_changed_nodes)++;
-		}
+        for (i = 0; i < number_of_nodes; i++)
+        {
+            (*number_changed_nodes)++;
+        }
 
-		changed_nodes = (uint32_t *)calloc((*number_changed_nodes), sizeof(uint32_t));
+        changed_nodes = (uint32_t *) calloc((*number_changed_nodes), sizeof(uint32_t));
 
-		for (i = 0, changed_index = 0; i < number_of_nodes; i++)
-		{
-			if (nodes[i].is_in_changed_list)
-			{
-				changed_nodes[changed_index++] = i;
-			}
-		}
-	}
+        for (i = 0, changed_index = 0; i < number_of_nodes; i++)
+        {
+            if (nodes[i].is_in_changed_list)
+            {
+                changed_nodes[changed_index++] = i;
+            }
+        }
+    }
 
-	return total_flow;
+    return total_flow;
 }
 
 static bool edgeHasResidualCapacity(edge_t *edge)

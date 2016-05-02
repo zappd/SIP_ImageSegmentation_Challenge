@@ -4,26 +4,27 @@
 
 struct gconf
 {
-  char inputData[256];
-  int nx;
-  int ny;
-  int nw;
-  float sigma;
-  float evcrit;
-  int t;
-  float maxevfact;
-  int krep;
-  int kiter;
-  int kcent;
-  int verbosity;
-  float taucardinality;
-  float kelbw;
-  int cardmin;
+    char  inputData[256];
+    int   nx;
+    int   ny;
+    int   nw;
+    float sigma;
+    float evcrit;
+    int   t;
+    float maxevfact;
+    int   krep;
+    int   kiter;
+    int   kcent;
+    int   verbosity;
+    float taucardinality;
+    float kelbw;
+    int   cardmin;
 };
 
 extern struct gconf gconf;
 
 void readConfig(const char *);
+
 void printConfig(void);
 
 

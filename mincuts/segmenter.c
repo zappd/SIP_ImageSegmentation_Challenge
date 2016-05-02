@@ -6,7 +6,7 @@
 
 #include "segmenter.h"
 #include "graphCuts.h"
-#include "segment_png_io.h"
+#include "segmentPngIO.h"
 
 /********************************
  * Definitions
@@ -19,9 +19,13 @@
  ********************************/
 
 static void initializeSegmenter();
+
 static void deallocateSegmenter();
+
 static void segment(float ***image_cube, uint32_t segment_id);
+
 static void calculateEdgeWeights(float ***image_cube);
+
 static void calculateBandAverages(float ***image_cube, uint32_t segment_id, uint32_t number_of_nodes);
 
 
@@ -29,25 +33,25 @@ static void calculateBandAverages(float ***image_cube, uint32_t segment_id, uint
  * Global Vars
  ********************************/
 
-static int X_OFFSETS[NUM_NEIGHBORS] = {0, 1, 1, 1, 0, -1, -1, -1};
-static int Y_OFFSETS[NUM_NEIGHBORS] = {-1, -1, 0, 1, 1, 1, 0, -1};
+static const int X_OFFSETS[NUM_NEIGHBORS] = {0, 1, 1, 1, 0, -1, -1, -1};
+static const int Y_OFFSETS[NUM_NEIGHBORS] = {-1, -1, 0, 1, 1, 1, 0, -1};
 
 static int segment_count = 0;
 
-static uint32_t lines = 0;
+static uint32_t lines   = 0;
 static uint32_t samples = 0;
-static uint32_t bands = 0;
+static uint32_t bands   = 0;
 
-static float ***edge_weights;
-static float *band_averages;
+static float    ***edge_weights;
+static float    *band_averages;
 static uint32_t **segment_ids;
 static uint32_t **node_ids;
 
 void recursivelySegment(float ***image_cube, image_info_t *image_info, char *segment_image_file_path)
 {
-    lines = image_info->lines;
+    lines   = image_info->lines;
     samples = image_info->samples;
-    bands = image_info->bands;
+    bands   = image_info->bands;
 
     initializeSegmenter();
 
@@ -66,34 +70,34 @@ void recursivelySegment(float ***image_cube, image_info_t *image_info, char *seg
 static void initializeSegmenter()
 {
     // init band averages
-    band_averages = (float *)malloc(bands * sizeof(float));
+    band_averages = (float *) malloc(bands * sizeof(float));
 
     // init segment_ids
-    segment_ids = (uint32_t **)malloc(lines * sizeof(uint32_t *));
+    segment_ids = (uint32_t **) malloc(lines * sizeof(uint32_t *));
     for (uint32_t line = 0; line < lines; line++)
     {
         // initializes all pixels to node 0
-        segment_ids[line] = (uint32_t *)calloc(samples, sizeof(uint32_t));
+        segment_ids[line] = (uint32_t *) calloc(samples, sizeof(uint32_t));
     }
 
     // init node ids
-    node_ids = (uint32_t **)malloc(lines * sizeof(uint32_t*));
+    node_ids = (uint32_t **) malloc(lines * sizeof(uint32_t *));
     for (uint32_t line = 0; line < lines; line++)
     {
         // initializes all pixels to node 0
-        node_ids[line] = (uint32_t *)calloc(samples, sizeof(uint32_t));
+        node_ids[line] = (uint32_t *) calloc(samples, sizeof(uint32_t));
     }
 
     // init edge weights
-    edge_weights = (float ***)malloc(lines * sizeof(float **));
+    edge_weights = (float ***) malloc(lines * sizeof(float **));
 
     for (uint32_t line = 0; line < lines; line++)
     {
-        edge_weights[line] = (float **)malloc(samples * sizeof(float *));
+        edge_weights[line] = (float **) malloc(samples * sizeof(float *));
 
         for (uint32_t sample = 0; sample < samples; sample++)
         {
-            edge_weights[line][sample] = (float *)malloc(NUM_NEIGHBORS * sizeof(float));
+            edge_weights[line][sample] = (float *) malloc(NUM_NEIGHBORS * sizeof(float));
         }
     }
 }
@@ -176,7 +180,8 @@ static void segment(float ***image_cube, uint32_t segment_id)
     initializeGraph(number_of_nodes, number_of_edges);
 
     uint32_t node_id = 0;
-    double weight = 0, source = 0, sink = 0;
+
+    float weight = 0, source = 0, sink = 0;
 
     for (uint32_t line = 0; line < lines; line++)
     {
@@ -187,7 +192,7 @@ static void segment(float ***image_cube, uint32_t segment_id)
                 continue;
             }
 
-            weight = 0;
+            weight  = 0;
             node_id = node_ids[line][sample];
 
             for (uint32_t band = 0; band < bands; band++)
@@ -196,7 +201,7 @@ static void segment(float ***image_cube, uint32_t segment_id)
             }
 
             source = powf(1.005, weight);
-            sink = powf(1.005, (-1) * weight);
+            sink   = powf(1.005, (-1) * weight);
 
             setTerminalWeights(node_id, source, sink);
 
@@ -224,7 +229,8 @@ static void segment(float ***image_cube, uint32_t segment_id)
 
     computeMaximumFlow(false, NULL, 0);
 
-    if (number_of_nodes != 0) {
+    if (number_of_nodes != 0)
+    {
         uint32_t fore = 0, back = 0;
 
         // START: Partition by Fore/Back-ground
@@ -234,7 +240,9 @@ static void segment(float ***image_cube, uint32_t segment_id)
             {
                 if (segment_ids[line][sample] == segment_id)
                 {
-                    segment_ids[line][sample] = (getTerminal(node_ids[line][sample]) == BACKGROUND) ? (2 * segment_id + 1) : (2 * segment_id + 2);
+                    segment_ids[line][sample] = (getTerminal(node_ids[line][sample]) == BACKGROUND) ? (2 * segment_id +
+                                                                                                       1) : (
+                                                        2 * segment_id + 2);
 
                     if (segment_ids[line][sample] == (2 * segment_id + 1))
                     {
@@ -283,10 +291,13 @@ static void calculateEdgeWeights(float ***image_cube)
 
                 for (int band = 0; band < bands; band++)
                 {
-                    distance += sqrtf( fabsf(X_OFFSETS[offset_index]) + fabsf(Y_OFFSETS[offset_index]) ) * powf(image_cube[line + X_OFFSETS[offset_index]][sample + Y_OFFSETS[offset_index]][band] - image_cube[line][sample][band], 2);
+                    distance += sqrtf(fabsf(X_OFFSETS[offset_index]) + fabsf(Y_OFFSETS[offset_index])) *
+                                powf(image_cube[line + X_OFFSETS[offset_index]][sample +
+                                                                                Y_OFFSETS[offset_index]][band] -
+                                     image_cube[line][sample][band], 2);
                 }
 
-                edge_weights[line][sample][offset_index] = powf( 1.005 , (-1) * powf(distance, 0.2) );
+                edge_weights[line][sample][offset_index] = powf(1.005, (-1) * powf(distance, 0.2));
             }
         }
     }
