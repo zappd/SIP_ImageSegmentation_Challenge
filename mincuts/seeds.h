@@ -40,6 +40,7 @@ typedef struct neighbor
 typedef struct seed_region
 {
     uint32_t   segment_id;
+    uint32_t   neighbor_count;
     neighbor_t *neighbors;
 } seed_region_t;
 
@@ -51,6 +52,8 @@ typedef struct seed_region
 void cutSeedRegions(float ***image, image_info_t *image_info, uint32_t **segment_id_map, seed_region_t *seed_region_arr, uint32_t segments);
 
 void getSeedIDFromFile(const char *, uint32_t **);
+seed_region_t * getSeedDataFromFile(const char * , const char * , const char * );
+void freeSeeds(seed_region_t *);
 
 
 #endif // SEEDS_H

@@ -69,8 +69,6 @@ static void addEdgesFromNodeAt(uint32_t u_line, uint32_t u_sample);
 
 static void removeEdgesFromNodeAt(uint32_t u_line, uint32_t u_sample);
 
-static void getSeedIDFromFile(const char *nm, uint32_t **dest);
-
 /********************************
  * Global Variables
  ********************************/
@@ -776,7 +774,7 @@ static void splitSegment(uint32_t parent_segment_id, uint32_t new_segment_id)
     }
 }
 
-static void getSeedIDFromFile(const char *nm, uint32_t **dest)
+void getSeedIDFromFile(const char *nm, uint32_t **dest)
 {
     FILE *fp;
     int i, j;
@@ -802,4 +800,101 @@ static void getSeedIDFromFile(const char *nm, uint32_t **dest)
 
     free(src);
 }
+
+void freeSeeds( seed_region_t * sr)
+{
+
+  for(int i=0;i<gconf.kcent;i++)
+  {
+    free(sr[i].neighbors);
+  }
+  free(sr);
+
+}
+
+seed_region_t * getSeedDataFromFile(const char * lengthfile, const char * neighborfile, const char * typefile)
+{
+
+  int sum=0,i,j;
+  FILE * fp;
+  seed_region_t * seed_arr;
+
+  int *lengths=(int *)malloc(sizeof(int)*gconf.kcent); /* number of neighbors per node */
+
+  fp=fopen(lengthfile,"r");
+
+  if((fread(lengths, sizeof(int),gconf.kcent,fp))!=gconf.kcent)
+  {
+    fprintf(stderr, "Could not slurp %d ints\n", gconf.nx*gconf.ny);
+  }
+
+  fclose(fp);
+
+  for(i=0;i<gconf.kcent;i++)
+  {
+    sum+=lengths[i];
+  }
+
+  int *ntype=malloc(sizeof(int)*sum); /* neighbor type */
+  int *neigh=malloc(sizeof(int)*sum); /* neighbor index */
+
+  fp=fopen(typefile,"r");
+
+  if((fread(ntype, sizeof(int),sum,fp))!=sum)
+  {
+    fprintf(stderr, "Could not slurp %d ints\n", gconf.nx*gconf.ny);
+  }
+
+  fclose(fp);
+
+
+  fp=fopen(neighborfile,"r");
+
+  if((fread(neigh, sizeof(int),sum,fp))!=sum)
+  {
+    fprintf(stderr, "Could not slurp %d ints\n", gconf.nx*gconf.ny);
+  }
+
+  fclose(fp);
+
+
+  seed_arr =malloc(sizeof(seed_region_t)*gconf.kcent);
+
+  for(i=0;i<gconf.kcent;i++)
+  {
+    seed_arr[i].neighbors=malloc(sizeof(neighbor_t)*lengths[i]);
+    seed_arr[i].neighbor_count=(uint32_t)lengths[i];
+  }
+
+  int gindex=0;
+  for(i=0;i<gconf.kcent;i++)
+  {
+    seed_arr[i].segment_id =(uint32_t) i+1;
+    for(j=0;j<lengths[i];j++,gindex++)
+    {
+      seed_arr[i].neighbors[j].segment_id=(uint32_t)neigh[gindex];
+      if(ntype[gindex]==0)
+      {
+        seed_arr[i].neighbors[j].neighbor_type=AMBIGUOUS;
+      }
+      else if(ntype[gindex]==1)
+      {
+        seed_arr[i].neighbors[j].neighbor_type=SINK;
+      }
+      else
+      {
+        seed_arr[i].neighbors[j].neighbor_type=SOURCE;
+        }
+
+    }
+  }
+  free(lengths);
+  free(ntype);
+  free(neigh);
+
+
+  return seed_arr;
+
+}
+
 

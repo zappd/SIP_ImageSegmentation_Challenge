@@ -1,4 +1,4 @@
-CC = clang
+CC = icc
 CFLAGS = -c -std=c11 -Wall
 LDFLAGS = -o
 DEPENDENCIES = graphCuts.h segmenter.h readENVI.h segmentPngIO.h config.h seeds.h
@@ -13,7 +13,7 @@ debug: CFLAGS += -g
 debug: all
 
 build: $(OBJECTS)
-	$(CC) $(LDFLAGS) mincuts $(OBJECTS) -lm -lpng
+	$(CC) -std=c11 $(LDFLAGS) mincuts $(OBJECTS) -lm -lpng
 
 clean:
 	rm *.o
