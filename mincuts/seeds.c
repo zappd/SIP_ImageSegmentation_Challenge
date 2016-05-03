@@ -796,7 +796,7 @@ static void getSeedIDFromFile(const char *nm, uint32_t **dest)
     {
         for (j = 0; j < gconf.ny; j++)
         {
-            dest[i][j] = (uint32_t) src[i * gconf.ny + j];
+            dest[j][i] = (uint32_t) src[i * gconf.ny + j];
         }
     }
 
