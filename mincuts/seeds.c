@@ -6,6 +6,7 @@
 
 #include "graphCuts.h"
 #include "math.h"
+#include "config.h"
 #include "seeds.h"
 
 
@@ -767,3 +768,30 @@ static void splitSegment(uint32_t parent_segment_id, uint32_t new_segment_id)
         }
     }
 }
+
+void getSeedIDFromFile(const char * nm, uint32_t ** dest)
+{
+  FILE * fp;
+  int i,j;
+
+  int * src = (int *)malloc(sizeof(int)*gconf.nx*gconf.ny);
+
+  fp=fopen(nm,"r");
+
+  if((fread(src, sizeof(int),gconf.nx*gconf.ny,fp))!=gconf.nx*gconf.ny)
+  {
+    fprintf(stderr, "Could not slurp %d ints\n", gconf.nx*gconf.ny);
+  }
+
+  fclose(fp);
+
+  for(i=0;i<gconf.nx;i++)
+  {
+    for(j=0;j<gconf.ny;j++)
+    {
+      dest[i][j]=(uint32_t)src[i*gconf.ny+j];
+    }
+  }
+
+}
+

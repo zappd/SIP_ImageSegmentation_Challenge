@@ -2,8 +2,8 @@
 inputData=../prototyping/diffusedcube.data
 
 #Dimensions
-nx=32
-ny=32
+nx=600
+ny=800
 
 #Number of wavenumbers
 nw=1

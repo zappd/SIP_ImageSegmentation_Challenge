@@ -1,11 +1,11 @@
+#ifndef MINCUTS_SEEDS_H
+#define MINCUTS_SEEDS_H
 #include <stdint.h>
 
 #include "config.h"
 #include "readENVI.h"
 
 
-#ifndef MINCUTS_SEEDS_H
-#define MINCUTS_SEEDS_H
 
 
 /********************************
@@ -44,14 +44,15 @@ typedef struct seed_region
     neighbor_t *neighbors;
 } seed_region_t;
 
-
 /********************************
  * Functions
  ********************************/
 
 // TODO - make sure that seed region array comes ordered from lowest to highest segment id
-void cutSeedRegions(float ***image, image_info_t *image_info, uint32_t **segment_id_map, seed_region_t *seed_region_arr,
-                    uint32_t segments);
+void cutSeedRegions(float ***image, image_info_t *image_info, uint32_t **segment_id_map, seed_region_t *seed_region_arr, uint32_t segments);
+
+void getSeedIDFromFile(const char *, uint32_t **);
+
 
 #endif // MINCUTS_SEEDS_H
 
