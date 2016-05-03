@@ -27,4 +27,4 @@ krep=8
 kiter=400
 
 #number of centers for kmeans
-kcent=30
+kcent=1583
