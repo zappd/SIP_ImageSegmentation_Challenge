@@ -777,7 +777,7 @@ static void splitSegment(uint32_t parent_segment_id, uint32_t new_segment_id)
 void getSeedIDFromFile(const char *nm, uint32_t **dest)
 {
     FILE *fp;
-    int i, j;
+    int i, j, ir;
 
     int *src = (int *) malloc(sizeof(int) * gconf.nx * gconf.ny);
 
@@ -790,11 +790,11 @@ void getSeedIDFromFile(const char *nm, uint32_t **dest)
 
     fclose(fp);
 
-    for (i = 0; i < gconf.nx; i++)
+    for (i = 0, ir=0; i < gconf.nx; i++)
     {
-        for (j = 0; j < gconf.ny; j++)
+        for (j = 0; j < gconf.ny; j++, ir++)
         {
-            dest[j][i] = (uint32_t) src[i * gconf.ny + j];
+            dest[j][i] = (uint32_t) src[ir];
         }
     }
 
