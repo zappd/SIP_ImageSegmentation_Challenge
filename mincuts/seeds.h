@@ -1,12 +1,11 @@
-#ifndef MINCUTS_SEEDS_H
-#define MINCUTS_SEEDS_H
 #include <stdint.h>
 
 #include "config.h"
 #include "readENVI.h"
 
 
-
+#ifndef SEEDS_H
+#define SEEDS_H
 
 /********************************
  * Typedef Enums
@@ -54,8 +53,4 @@ void cutSeedRegions(float ***image, image_info_t *image_info, uint32_t **segment
 void getSeedIDFromFile(const char *, uint32_t **);
 
 
-#endif // MINCUTS_SEEDS_H
-
-
-
-
+#endif // SEEDS_H

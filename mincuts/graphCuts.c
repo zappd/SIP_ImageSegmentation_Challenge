@@ -608,7 +608,7 @@ static void initializeMaxFlowAndReuseTrees()
 
                     if (node_2->parent_edge != NULL &&
                         !node_2->is_in_sink &&
-                        edge->sister_edge > 0)
+                        ((edge_t *)edge->sister_edge)->residual_capacity > DELTA)
                     {
                         setNodeActive(node_2);
                     }

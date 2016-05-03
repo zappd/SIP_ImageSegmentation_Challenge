@@ -65,10 +65,11 @@ static void splitSegment(uint32_t parent_segment_id, uint32_t new_segment_id);
 
 static void flagAffectedSegments();
 
-static void addEdgesFromNodeAt(uint32_t line, uint32_t sample);
+static void addEdgesFromNodeAt(uint32_t u_line, uint32_t u_sample);
 
-static void removeEdgesFromNodeAt(uint32_t line, uint32_t sample);
+static void removeEdgesFromNodeAt(uint32_t u_line, uint32_t u_sample);
 
+static void getSeedIDFromFile(const char *nm, uint32_t **dest);
 
 /********************************
  * Global Variables
@@ -222,9 +223,9 @@ static void calculateEdgeWeights()
 
     calculateBandVariances();
 
-    for (uint32_t line = 0; line < lines; line++)
+    for (int32_t line = 0; line < lines; line++)
     {
-        for (uint32_t sample = 0; sample < samples; sample++)
+        for (int32_t sample = 0; sample < samples; sample++)
         {
 
             for (uint32_t offset_index = 0; offset_index < NUM_OFFSETS; offset_index++)
@@ -306,7 +307,7 @@ static void calculateBandVariances()
     for (uint32_t band = 0; band < bands; band++)
     {
         // take natural log of function, then prep it for division
-        band_variances[band] = 1.0 / log10f(band_variances[band] - minimum);
+        band_variances[band] = 1 / log10f(band_variances[band] - minimum);
     }
 }
 
@@ -518,8 +519,11 @@ static void removeSegmentFromNodeMap(uint32_t segment_id)
     }
 }
 
-static void addEdgesFromNodeAt(uint32_t line, uint32_t sample)
+static void addEdgesFromNodeAt(uint32_t u_line, uint32_t u_sample)
 {
+    int32_t line = (int32_t)u_line;
+    int32_t sample = (int32_t)u_sample;
+
     for (uint32_t neighbor_index = 0; neighbor_index < NUM_NEIGHBORS; neighbor_index++)
     {
         if ((line + X_NEIGHBORS[neighbor_index]) >= lines ||
@@ -537,8 +541,11 @@ static void addEdgesFromNodeAt(uint32_t line, uint32_t sample)
     }
 }
 
-static void removeEdgesFromNodeAt(uint32_t line, uint32_t sample)
+static void removeEdgesFromNodeAt(uint32_t u_line, uint32_t u_sample)
 {
+    int32_t line = (int32_t)u_line;
+    int32_t sample = (int32_t)u_sample;
+
     for (uint32_t neighbor_index = 0; neighbor_index < NUM_NEIGHBORS; neighbor_index++)
     {
         if ((line + X_NEIGHBORS[neighbor_index]) >= lines ||
@@ -585,9 +592,9 @@ static void setAllTerminalWeights()
 
 static void setAllEdgeWeights()
 {
-    for (uint32_t line = 0; line < lines; line++)
+    for (int32_t line = 0; line < lines; line++)
     {
-        for (uint32_t sample = 0; sample < samples; sample++)
+        for (int32_t sample = 0; sample < samples; sample++)
         {
             if (node_ids[line][sample] >= 0)
             {
@@ -769,29 +776,30 @@ static void splitSegment(uint32_t parent_segment_id, uint32_t new_segment_id)
     }
 }
 
-void getSeedIDFromFile(const char * nm, uint32_t ** dest)
+static void getSeedIDFromFile(const char *nm, uint32_t **dest)
 {
-  FILE * fp;
-  int i,j;
+    FILE *fp;
+    int i, j;
 
-  int * src = (int *)malloc(sizeof(int)*gconf.nx*gconf.ny);
+    int *src = (int *) malloc(sizeof(int) * gconf.nx * gconf.ny);
 
-  fp=fopen(nm,"r");
+    fp = fopen(nm, "r");
 
-  if((fread(src, sizeof(int),gconf.nx*gconf.ny,fp))!=gconf.nx*gconf.ny)
-  {
-    fprintf(stderr, "Could not slurp %d ints\n", gconf.nx*gconf.ny);
-  }
-
-  fclose(fp);
-
-  for(i=0;i<gconf.nx;i++)
-  {
-    for(j=0;j<gconf.ny;j++)
+    if ((fread(src, sizeof(int), (size_t)(gconf.nx * gconf.ny), fp)) != gconf.nx * gconf.ny)
     {
-      dest[i][j]=(uint32_t)src[i*gconf.ny+j];
+        fprintf(stderr, "Could not slurp %d ints\n", gconf.nx * gconf.ny);
     }
-  }
 
+    fclose(fp);
+
+    for (i = 0; i < gconf.nx; i++)
+    {
+        for (j = 0; j < gconf.ny; j++)
+        {
+            dest[i][j] = (uint32_t) src[i * gconf.ny + j];
+        }
+    }
+
+    free(src);
 }
 

@@ -1,6 +1,7 @@
 #include <png.h>
 #include <stdlib.h>
 #include <stdint.h>
+
 #include "segmentPngIO.h"
 
 /*
