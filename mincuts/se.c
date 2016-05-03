@@ -15,8 +15,8 @@
 #include "vl/kmeans.h"
 #include "vl/mathop.h"
 
-static void setNeighbors();
-static void triangualateCentroids();
+ void setNeighbors();
+ void triangualateCentroids();
 
 
 /*
@@ -188,7 +188,7 @@ void setSpectralSeeds(float * data, int * O, seed_region_t * seeds )
   free(R);
 }
 
-static void setSeedCentroids(int * O, float * Cx, float * Cy, int countkey)
+ void setSeedCentroids(int * O, float * Cx, float * Cy, int countkey)
 {
 #define SubX(n)     (((n)%(gconf.nx*gconf.ny))%gconf.nx)
 #define SubY(n)     (((n)-SubX(n)%(gconf.nx*gconf.ny))/gconf.nx)
@@ -222,7 +222,7 @@ static void setSeedCentroids(int * O, float * Cx, float * Cy, int countkey)
 #undef Suby
 }
 
-static int findKeyInArray(int key, int * array, int asize)
+ int findKeyInArray(int key, int * array, int asize)
 {
   /* returns index >=0 with index in array where found, <0 if not found */
   int i;
@@ -241,7 +241,7 @@ static int findKeyInArray(int key, int * array, int asize)
 }
 
 
-static int setUniqueOrderedIndices(int * O)
+ int setUniqueOrderedIndices(int * O)
 {
   int * newkeys = malloc(sizeof(int)*gconf.kcent+1);
   int countkey=1;
@@ -269,7 +269,58 @@ static int setUniqueOrderedIndices(int * O)
   return countkey;
 }
 
-static void setMinimumCardinality(float * R, int * O)
+void setF(float * F,int * Card,float * Cent, int M, float tau)
+{
+  int i,j,k;
+  float r;
+  double * Centact=calloc(M*gconf.kcent,sizeof(double));
+  
+#define Idx(i,j) (i*M+j) /* i is center, j is dimension */
+  for(i=1;i<=gconf.kcent;i++)
+  {
+    for(j=0;j<50;j++)
+    {
+      r=j*0.02;
+
+      for(k=0;k<M;k++)
+      {
+      Centact[Idx(i-1,k)]
+      }
+
+    }
+      
+
+
+
+
+  }
+
+#undef Idx
+
+
+}
+
+ void setCenterCardinality(int * O, int * Card)
+{
+  /* gets rid of seed regions with cardinality < gconf.cardmin */
+  int i,k;
+  int card;
+
+  for(k=1;k<=gconf.kcent;k++)
+  {
+    Card[k-1]=0;
+
+    for(i=0;i<gconf.nx*gconf.ny;i++)
+    {
+      if(O[i]==k)
+      {
+        Card[k-1]++;
+      }
+    }
+  }
+}
+
+ void setMinimumCardinality(float * R, int * O)
 {
   /* gets rid of seed regions with cardinality < gconf.cardmin */
   int i,k;
@@ -301,7 +352,7 @@ static void setMinimumCardinality(float * R, int * O)
   }
 }
 
-static void setThresholdOverlay(float * R, int * O, float tau)
+ void setThresholdOverlay(float * R, int * O, float tau)
 {
   /* Set ID to zero if above threshold, add one to each other ID */
   int i;
@@ -317,7 +368,7 @@ static void setThresholdOverlay(float * R, int * O, float tau)
   }
 }
 
-static float findThresholdOverlay(float * R, int * O)
+ float findThresholdOverlay(float * R, int * O)
 {
   int i,j;
   int card;
@@ -365,7 +416,7 @@ static float findThresholdOverlay(float * R, int * O)
 }
 
 
-static void squareRootMatrix(float * A, int N)
+ void squareRootMatrix(float * A, int N)
 {
   /* gets the squareroot of an NxN positive semidefinite matrix */
 #define Idx(i,j) (N*i+j)
@@ -404,7 +455,7 @@ static void squareRootMatrix(float * A, int N)
 #undef Idx
 }
 
-static void normalizeEigenvectors(float * U, int M)
+ void normalizeEigenvectors(float * U, int M)
 {
   /* Feast doesn not normalize EV, do it here after condense */
 #define Idx(i,j) ((i)*gconf.nx*gconf.ny+(j))
@@ -427,7 +478,7 @@ static void normalizeEigenvectors(float * U, int M)
 
 }
 
-static double setKmeans(float * Z, float * R, int * O, int M, int K)
+ double setKmeans(float * Z, float * R, int * O, int M, int K, double * Cent)
 {
   double energy;
   double * centers;
@@ -451,6 +502,10 @@ static double setKmeans(float * Z, float * R, int * O, int M, int K)
   energy=vl_kmeans_refine_centers(kmeans,Z,gconf.nx*gconf.ny);
   //energy=vl_kmeans_get_energy(kmeans);
   centers = (double *)vl_kmeans_get_centers(kmeans);
+  for(i=1;i<M*gconf.kcent;i++)
+  {
+    Cent[i]=centers[i];
+  }
 
   /* krep, kiter, kcent */
   vl_uint32 * assignments = vl_malloc(sizeof(vl_uint32)*gconf.nx*gconf.ny);
@@ -469,7 +524,7 @@ static double setKmeans(float * Z, float * R, int * O, int M, int K)
   return energy;
 }
 
-static void setTransformCenters(float * Z, float * R, int * O, int M)
+ void setTransformCenters(float * Z, float * R, int * O, int M, float * Cent) 
 {
   /* Z is coordinate transofrmed,  R is overlay distance from center, O is overlap map*/
   /* Z is in row major for the kmeans library */
@@ -500,37 +555,39 @@ static void setTransformCenters(float * Z, float * R, int * O, int M)
   }
 #undef Jdx
 
-  energy0=setKmeans(Z,R,O,M,1);
-  oldenergy=energy0;
+  energy0=setKmeans(Z,R,O,M,1,Cent);
+  //oldenergy=energy0;
 
-    if(gconf.verbosity==1)
-    {
-  fprintf(stderr,"Finding elbow in kmeans...\n");
-    }
-  for(k=2;k<gconf.kcent;k+=2)
-  {
-    energy=setKmeans(Z,R,O,M,k);
-    diffenergy=fabs(energy-oldenergy);
-    oldenergy=energy;
+  //  if(gconf.verbosity==1)
+  //  {
+  //fprintf(stderr,"Finding elbow in kmeans...\n");
+  //  }
+  //for(k=4;k<gconf.kcent;k+=4)
+  //{
+   energy=setKmeans(Z,R,O,M,gconf.kcent);
+   //fprintf(stderr,"%d %e %e \n",gconf.kcent,energy0,energy);
 
-    if(gconf.verbosity==1)
-    {
-    fprintf(stderr,"%d %e %e %e\n",k,diffenergy/energy0,gconf.kelbw,oldenergy);
-    }
+  //  diffenergy=fabs(energy-oldenergy);
+  //  oldenergy=energy;
 
-    if((diffenergy/energy0)<gconf.kelbw)
-    {
-      break;
-    }
-  }
+  //  if(gconf.verbosity==1)
+  //  {
+  //  fprintf(stderr,"%d %e %e %e\n",k,diffenergy/energy0,gconf.kelbw,oldenergy);
+  //  }
 
-  gconf.kcent=k;
+  //  if((diffenergy/energy0)<gconf.kelbw)
+  //  {
+  //    break;
+  //  }
+  //}
+
+  //gconf.kcent=k;
 
   //fprintf(stderr,"%d\n",gconf.kcent);
 }
 
 
-static void setCoordinateTransform(float * Z, float * W, float * E, float * U, float * D, int M)
+ void setCoordinateTransform(float * Z, float * W, float * E, float * U, float * D, int M)
 {
   /* computes Q=U^T D U, z=Q^(1/2)W*/
   /* Q is MxM */
@@ -570,7 +627,7 @@ static void setCoordinateTransform(float * Z, float * W, float * E, float * U, f
 #undef Idx
 }
 
-static void setSpectralWeights(float * W, float * E, float * U, float * D, int M)
+ void setSpectralWeights(float * W, float * E, float * U, float * D, int M)
 {
   /* Computes transpose of  W=E^t U^T D^(-1/2), eqn (6),
    * as W^T=D^(-1/2)^T U E^t */
@@ -586,7 +643,7 @@ static void setSpectralWeights(float * W, float * E, float * U, float * D, int M
 #undef Idx
 }
 
-static void condenseEigenvalues(float * E,int m)
+ void condenseEigenvalues(float * E,int m)
 {
   /* get rid of imaginary components (should be zero) */
   int i;
@@ -597,7 +654,7 @@ static void condenseEigenvalues(float * E,int m)
 
 }
 
-static void condenseEigenvectors(float * U, int m)
+ void condenseEigenvectors(float * U, int m)
 {
   /* Eigenvectors are returned from feast to include imaginary components
    * followed by the left eigenvector, this function aligns real components
@@ -632,7 +689,7 @@ static void condenseEigenvectors(float * U, int m)
 #undef SRC
 }
 
-static int setEigenPairs(float * A, int * JA, int * IA, float * E, float * U)
+ int setEigenPairs(float * A, int * JA, int * IA, float * E, float * U)
 {
   /* Feast in */
   int fpm[64];    /* Feast configuration */
@@ -658,7 +715,8 @@ static int setEigenPairs(float * A, int * JA, int * IA, float * E, float * U)
   M0=(int)(gconf.nx*gconf.ny)/gconf.maxevfact;
 
   /* Configure feast */
-  fpm[0]=1;       /* verbose output */
+  fpm[0]=0;       /* verbose output */
+  fpm[1]=16;
   fpm[3]=600;       /* refinement */
   fpm[5]=1;       /* error type */
   // fpm[6]=5;       /* 10^-x convergence criteria */
@@ -671,7 +729,7 @@ static int setEigenPairs(float * A, int * JA, int * IA, float * E, float * U)
 
   if(gconf.verbosity==1)
   {
-    fprintf(stderr,"Feast Initialized\n");
+    fprintf(stderr,"Feast Initialized, assuming %d ev\n",M0);
   }
 
   sfeast_gcsrev(&N,A,IA,JA,fpm,&epsout,&loop,Emid,&r,&M0,E,U,&M,res,&info);
@@ -687,12 +745,12 @@ static int setEigenPairs(float * A, int * JA, int * IA, float * E, float * U)
 
 }
 
-static inline float affinityFunctionGaussian(float I1, float I2)
+ inline float affinityFunctionGaussian(float I1, float I2)
 {
   return exp(-(I1-I2)*(I1-I2)/(2*gconf.sigma*gconf.sigma));
 }
 
-static void setMarkovMatrix(float * A, int * JA, float * D, int nnz)
+ void setMarkovMatrix(float * A, int * JA, float * D, int nnz)
 {
   /* Divide each column by its normalizing factor */
   int i,j;
@@ -705,7 +763,7 @@ static void setMarkovMatrix(float * A, int * JA, float * D, int nnz)
 #undef FortIndex
 }
 
-static void setNormalizingVector(float * A, int * IA, float * D)
+ void setNormalizingVector(float * A, int * IA, float * D)
 {
   /* sum along each column (or row, its symmetric), put in D */
   long i,j;
@@ -724,7 +782,7 @@ static void setNormalizingVector(float * A, int * IA, float * D)
 }
 
 /* Put affinity matrix into sparse CSR format */
-static int setAffinityGaussian(float * data, float * A, int * JA, int * IA)
+ int setAffinityGaussian(float * data, float * A, int * JA, int * IA)
 {
 #define Data(x,y,z) data[gconf.nx*gconf.ny*(z)+gconf.nx*(y)+(x)]
 #define Idx(x,y,z)  (gconf.nx*gconf.ny*(z)+gconf.nx*(y)+(x))

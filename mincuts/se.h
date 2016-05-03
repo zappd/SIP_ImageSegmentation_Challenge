@@ -4,28 +4,28 @@
 
 void setSpectralSeeds(float * data, int * O, seed_region_t * );
 
-static void setMinimumCardinality(float *, int *);
+ void setMinimumCardinality(float *, int *);
 
-static float findThresholdOverlay(float * , int * );
-static void setThresholdOverlay(float * , int * , float);
-static void setSeedCentroids(int * , float * , float * , int );
-static int setUniqueOrderedIndices(int *);
+ float findThresholdOverlay(float * , int * );
+ void setThresholdOverlay(float * , int * , float);
+ void setSeedCentroids(int * , float * , float * , int );
+ int setUniqueOrderedIndices(int *);
 
-static void writeIntermediate(float *, size_t, const char *);
-static void readIntermediate(float *, size_t, const char *);
+ void writeIntermediate(float *, size_t, const char *);
+ void readIntermediate(float *, size_t, const char *);
 
-static int setAffinityGaussian(float * , float *, int *, int *);
-static void setMarkovMatrix(float * , int * , float * , int);
-static void setNormalizingVector(float * , int * , float * );
-static int setEigenPairs(float * , int * , int * , float * , float * );
+ int setAffinityGaussian(float * , float *, int *, int *);
+ void setMarkovMatrix(float * , int * , float * , int);
+ void setNormalizingVector(float * , int * , float * );
+ int setEigenPairs(float * , int * , int * , float * , float * );
 
-static void condenseEigenvectors(float *, int );
-static void condenseEigenvalues(float *, int );
-static void normalizeEigenvectors(float *,int);
+ void condenseEigenvectors(float *, int );
+ void condenseEigenvalues(float *, int );
+ void normalizeEigenvectors(float *,int);
 
-static void setSpectralWeights(float * , float * , float * , float * , int);
-static void setCoordinateTransform(float * , float * , float * , float * , float * , int );
-static void setTransformCenters(float * , float * , int * , int );
+ void setSpectralWeights(float * , float * , float * , float * , int);
+ void setCoordinateTransform(float * , float * , float * , float * , float * , int );
+ void setTransformCenters(float * , float * , int * , int );
 
 
 #endif
