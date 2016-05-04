@@ -71,6 +71,6 @@ typedef struct
 
 void freeImageCube(float ***image_cube, image_info_t *image_info);
 
-float ***readImageCube(char const *data_file_path, char const *header_file_path, image_info_t *image_info);
+float ***readImageCubeFromFile(char const *data_file_path, char const *header_file_path, image_info_t *image_info);
 
 #endif // READ_ENVI_H

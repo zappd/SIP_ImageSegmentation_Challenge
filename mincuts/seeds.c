@@ -3,11 +3,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <pthread.h>
 
 #include "graphCuts.h"
 #include "math.h"
 #include "config.h"
 #include "seeds.h"
+#include "segmentPngIO.h"
 
 
 /********************************
@@ -19,7 +22,7 @@
 #define INTERSTITIAL_SEGMENT_ID 0
 #define UNUSED_NODE_ID -1
 #define DEFAULT_SEGMENT_BOUNDS (segment_bounds_t){-1, -1, (samples + 1), -1}
-
+#define MAXIMUM_NUM_SEGMENTS 10000
 
 /********************************
  * Typedef Structs
@@ -28,14 +31,25 @@
 typedef struct segment_info
 {
     uint32_t         segment_id;
+    int32_t          background_segment_id;
+    uint32_t         pixel_count;
     neighbor_type_t  neighbor_type;
     segment_bounds_t segment_bounds;
 } segment_info_t;
+
+typedef struct {
+    uint32_t begin_line;
+    uint32_t end_line;
+    float *source_centroid;
+    float *sink_centroid;
+} terminal_weight_info_t;
 
 
 /********************************
  * Functions
  ********************************/
+
+static void normalizeImageCube();
 
 static void calculateEdgeWeights();
 
@@ -45,7 +59,7 @@ static void initialize();
 
 static void deallocate();
 
-static void segment();
+static void segmentImage();
 
 static void addSegmentToNodeMap(uint32_t segment_id);
 
@@ -53,21 +67,31 @@ static void removeSegmentFromNodeMap(uint32_t segment_id);
 
 static void setAllEdgeWeights();
 
-static void setAllTerminalWeights();
-
 static void calculateSegmentBounds();
 
 static void resetNodeIdMap();
 
+static uint32_t probeForSegmentId();
+
 static void storeCut();
-
-static void splitSegment(uint32_t parent_segment_id, uint32_t new_segment_id);
-
-static void flagAffectedSegments();
 
 static void addEdgesFromNodeAt(uint32_t u_line, uint32_t u_sample);
 
 static void removeEdgesFromNodeAt(uint32_t u_line, uint32_t u_sample);
+
+/* Vector Functions */
+static inline float hyperspectralDistanceFromOffset(int32_t line, int32_t sample, int32_t line_offset, int32_t sample_offset);
+
+static inline float hyperspectralDistanceFromVectors(float *vector_1, float *vector_2);
+
+static inline float addVectors(float *sum_vector, float *addend_vector);
+
+/* Terminal Calculation */
+static void setAllTerminalWeights();
+
+static void *computeSubsetOfTerminalWeights(void *wi);
+
+static void parallelComputeAmbiguousTerminalWeights(float *source_centroid, float *sink_centroid);
 
 /********************************
  * Global Variables
@@ -101,14 +125,153 @@ static segment_info_t *segments_info;
 static uint32_t **new_segment_ids;
 static uint32_t number_of_new_segments;
 
+static float ***ambiguous_terminal_storage;
+
 
 /********************************
  * Implementation
  ********************************/
 
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ ~ Seed Reading
+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+void readSegmentIdsFromFile(const char *segment_id_file_path, uint32_t ***segment_id_map, image_info_t *image_info)
+{
+    FILE *file_pointer = fopen(segment_id_file_path, "r");
+
+    uint32_t number_of_pixels = image_info->lines * image_info->samples;
+    *segment_id_map = (uint32_t **) malloc(image_info->lines * sizeof(uint32_t *));
+
+    for (uint32_t line = 0; line < image_info->lines; line++)
+    {
+        fseek(file_pointer, (image_info->samples * sizeof(uint32_t) * line), SEEK_SET);
+
+        (*segment_id_map)[line] = (uint32_t *) malloc(image_info->samples * sizeof(uint32_t));
+
+        if ((fread((*segment_id_map)[line], sizeof(uint32_t), (size_t) image_info->samples, file_pointer)) !=
+            image_info->samples)
+        {
+            fprintf(stderr, "Could not read all %d segment ids from file '%s'\n", number_of_pixels,
+                    segment_id_file_path);
+        }
+    }
+
+    fclose(file_pointer);
+}
+
+void freeSeeds(seed_region_t *seeds_regions_to_free)
+{
+    for (uint32_t i = 0; i < global_config.kcent; i++)
+    {
+        free(seeds_regions_to_free[i].neighbors);
+    }
+
+    free(seeds_regions_to_free);
+}
+
+seed_region_t *getSeedDataFromFile(const char *neighbor_length_file_path, const char *neighbor_file_path,
+                                   const char *neighbor_type_file_path)
+{
+    FILE          *file_pointer;
+    seed_region_t *seed_region_arr;
+    uint32_t      *neighbors;
+    uint32_t      *neighbor_types;
+    uint32_t      sum_of_lengths = 0;
+
+    // store the number of neighbors per node
+    uint32_t *neigbors_per_segment = (uint32_t *) malloc(sizeof(uint32_t) * global_config.kcent);
+
+    // open the neighbor lengths file
+    file_pointer = fopen(neighbor_length_file_path, "r");
+
+    if ((fread(neigbors_per_segment, sizeof(int), (size_t) global_config.kcent, file_pointer)) != global_config.kcent)
+    {
+        fprintf(stderr, "Could not read %d seed regions from file '%s'\n",
+                global_config.kcent, neighbor_length_file_path);
+    }
+
+    fclose(file_pointer);
+
+    for (uint32_t i = 0; i < global_config.kcent; i++)
+    {
+        sum_of_lengths += neigbors_per_segment[i];
+    }
+
+    // allocate memory for neighbor types
+    neighbor_types = malloc(sizeof(uint32_t) * sum_of_lengths);
+
+    file_pointer = fopen(neighbor_type_file_path, "r");
+
+    if ((fread(neighbor_types, sizeof(int), sum_of_lengths, file_pointer)) != sum_of_lengths)
+    {
+        fprintf(stderr, "Could not read %d neighbor types from file '%s'\n", sum_of_lengths, neighbor_type_file_path);
+    }
+
+    fclose(file_pointer);
+
+
+    // allocate memory for neighbors
+    neighbors = malloc(sizeof(uint32_t) * sum_of_lengths);
+
+    file_pointer = fopen(neighbor_file_path, "r");
+
+    if ((fread(neighbors, sizeof(int), sum_of_lengths, file_pointer)) != sum_of_lengths)
+    {
+        fprintf(stderr, "Could not read %d neighbor types from file '%s'\n", sum_of_lengths, neighbor_file_path);
+    }
+
+    fclose(file_pointer);
+
+    // allocate space for seed regions
+    seed_region_arr = malloc(sizeof(seed_region_t) * global_config.kcent);
+
+    for (uint32_t i = 0; i < global_config.kcent; i++)
+    {
+        seed_region_arr[i].neighbors      = (neighbor_t *) malloc(sizeof(neighbor_t) * neigbors_per_segment[i]);
+        seed_region_arr[i].neighbor_count = neigbors_per_segment[i];
+    }
+
+    int           neighbor_index = 0;
+    for (uint32_t i              = 0; i < global_config.kcent; i++)
+    {
+        seed_region_arr[i].segment_id = (uint32_t) i + 1;
+
+        for (uint32_t j = 0; j < neigbors_per_segment[i]; j++, neighbor_index++)
+        {
+            seed_region_arr[i].neighbors[j].segment_id = (uint32_t) neighbors[neighbor_index];
+            if (neighbor_types[neighbor_index] == 0)
+            {
+                seed_region_arr[i].neighbors[j].neighbor_type = AMBIGUOUS;
+            }
+            else if (neighbor_types[neighbor_index] == 1)
+            {
+                seed_region_arr[i].neighbors[j].neighbor_type = SINK;
+            }
+            else
+            {
+                seed_region_arr[i].neighbors[j].neighbor_type = SOURCE;
+            }
+
+        }
+    }
+
+    free(neigbors_per_segment);
+    free(neighbor_types);
+    free(neighbors);
+
+    return seed_region_arr;
+}
+
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ ~ Cuts
+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
 void cutSeedRegions(float ***image, image_info_t *image_info, uint32_t **segment_id_map,
                     seed_region_t *seed_region_arr,
-                    uint32_t segments)
+                    uint32_t number_of_seed_regions)
 {
     image_cube = image;
 
@@ -119,15 +282,20 @@ void cutSeedRegions(float ***image, image_info_t *image_info, uint32_t **segment
     segment_ids  = segment_id_map;
     seed_regions = seed_region_arr;
 
-    number_of_segments     = segments;
-    number_of_new_segments = segments;
+    number_of_segments     = number_of_seed_regions + 1;
+    number_of_new_segments = number_of_segments;
 
     initialize();
 
-    segment();
+    segmentImage();
 
     deallocate();
 }
+
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ ~ Private
+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 static void initialize()
 {
@@ -155,9 +323,10 @@ static void initialize()
         }
     }
 
-    // init segment info
-    segments_info = (segment_info_t *) calloc(number_of_segments, sizeof(segment_info_t));
-    for (uint32_t i = 0; i < number_of_segments; i++)
+    // init segment info, add one info struct at the beginning to
+    // hold info about the interstitial segment, segment 0
+    segments_info = (segment_info_t *) calloc(MAXIMUM_NUM_SEGMENTS, sizeof(segment_info_t));
+    for (uint32_t i = 0; i < MAXIMUM_NUM_SEGMENTS; i++)
     {
         segments_info[i].segment_id = i;
     }
@@ -167,9 +336,25 @@ static void initialize()
     for (uint32_t line = 0; line < lines; line++)
     {
         // initializes all pixels to node 0
-        new_segment_ids[line] = (uint32_t *) calloc(samples, sizeof(uint32_t));
+        new_segment_ids[line] = (uint32_t *) malloc(samples * sizeof(uint32_t));
         memcpy(new_segment_ids[line], segment_ids[line], samples * sizeof(uint32_t));
     }
+
+    // init space for holding terminal values
+    ambiguous_terminal_storage = (float ***) malloc(lines * sizeof(float **));
+
+    for (uint32_t line = 0; line < lines; line++)
+    {
+        ambiguous_terminal_storage[line] = (float **) malloc(samples * sizeof(float *));
+
+        for (uint32_t sample = 0; sample < samples; sample++)
+        {
+            ambiguous_terminal_storage[line][sample] = (float *) malloc(2 * sizeof(float));
+        }
+    }
+
+
+    normalizeImageCube();
 
     calculateEdgeWeights();
 
@@ -189,7 +374,6 @@ static void deallocate()
         free(node_ids[line]);
     }
     free(node_ids);
-
 
     // free edge weights
     for (uint32_t line = 0; line < lines; line++)
@@ -213,19 +397,61 @@ static void deallocate()
         free(new_segment_ids[line]);
     }
     free(new_segment_ids);
+
+    // free ambiguous terminal storage
+    for (uint32_t line = 0; line < lines; line++)
+    {
+
+        for (uint32_t sample = 0; sample < samples; sample++)
+        {
+            free(ambiguous_terminal_storage[line][sample]);
+        }
+        free(ambiguous_terminal_storage[line]);
+    }
+    free(ambiguous_terminal_storage);
+
+}
+
+static void normalizeImageCube()
+{
+    float maximum = 0.0f;
+
+    // find maximum value
+    for (uint32_t line = 0; line < lines; line++)
+    {
+        for (uint32_t sample = 0; sample < samples; sample++)
+        {
+            for (uint32_t band = 0; band < bands; band++)
+            {
+                if (image_cube[line][sample][band] > maximum)
+                {
+                    maximum = image_cube[line][sample][band];
+                }
+            }
+        }
+    }
+
+    // normalize
+    for (uint32_t line = 0; line < lines; line++)
+    {
+        for (uint32_t sample = 0; sample < samples; sample++)
+        {
+            for (uint32_t band = 0; band < bands; band++)
+            {
+                image_cube[line][sample][band] = image_cube[line][sample][band] / (maximum);
+            }
+        }
+    }
 }
 
 static void calculateEdgeWeights()
 {
-    float distance = 0, temp_1, temp_2;
-
     calculateBandVariances();
 
     for (int32_t line = 0; line < lines; line++)
     {
         for (int32_t sample = 0; sample < samples; sample++)
         {
-
             for (uint32_t offset_index = 0; offset_index < NUM_OFFSETS; offset_index++)
             {
                 if ((line + X_OFFSETS[offset_index]) >= lines ||
@@ -236,19 +462,8 @@ static void calculateEdgeWeights()
                     continue;
                 }
 
-                distance = 0;
-
-                for (uint32_t band = 0; band < bands; band++)
-                {
-                    temp_1 = image_cube[line + X_OFFSETS[offset_index]][sample + Y_OFFSETS[offset_index]][band] -
-                             image_cube[line][sample][band];
-                    temp_2 = sqrtf(fabsf(X_OFFSETS[offset_index]) + fabsf(Y_OFFSETS[offset_index]));
-                    distance += temp_1 * temp_1 * temp_2 * band_variances[band];
-                }
-
-                edge_weights[line][sample][offset_index] = expf(
-                        ((-1) * distance * distance) /
-                        (2 * gconf.sigma * gconf.sigma));
+                edge_weights[line][sample][offset_index] =
+                        hyperspectralDistanceFromOffset(line, sample, X_OFFSETS[offset_index], Y_OFFSETS[offset_index]);
             }
         }
     }
@@ -279,7 +494,6 @@ static void calculateBandVariances()
         band_averages[band] = (band_averages[band] / nodes);
     }
 
-
     // calculate band variances
     for (uint32_t line = 0; line < lines; line++)
     {
@@ -300,12 +514,12 @@ static void calculateBandVariances()
     }
 
     // create an offset for the logarithm to not go negative
-    minimum -= expf(1.05);
+    // minimum -= 10.1;
 
     for (uint32_t band = 0; band < bands; band++)
     {
         // take natural log of function, then prep it for division
-        band_variances[band] = 1 / log10f(band_variances[band] - minimum);
+        band_variances[band] = band_variances[band] / minimum;
     }
 }
 
@@ -313,6 +527,8 @@ static void resetNodeIdMap()
 {
     minimum_node_id = 0;
     number_of_edges = 0;
+
+    segments_info[0].neighbor_type = AMBIGUOUS;
 
     for (uint32_t line = 0; line < lines; line++)
     {
@@ -333,21 +549,23 @@ static void resetNodeIdMap()
 
 static void calculateSegmentBounds()
 {
+    uint32_t segment_id;
+
     // we are going to be accessing segments a lot
     // let's not make a map or anything crazy like that,
     // but pre-process to decrease the range of the search
 
     // init segment bounds to defaults
-    for (uint32_t segment = 0; segment < number_of_segments; segment++)
+    for (uint32_t segment = 0; segment < MAXIMUM_NUM_SEGMENTS; segment++)
     {
         segments_info[segment].segment_bounds = DEFAULT_SEGMENT_BOUNDS;
     }
 
-    for (uint32_t line = 0; line < lines; line++)
+    for (int32_t line = 0; line < lines; line++)
     {
-        for (uint32_t sample = 0; sample < samples; sample++)
+        for (int32_t sample = 0; sample < samples; sample++)
         {
-            uint32_t segment_id = segment_ids[line][sample];
+            segment_id = segment_ids[line][sample];
 
             segment_bounds_t *segment_bounds = &segments_info[segment_id].segment_bounds;
 
@@ -371,24 +589,32 @@ static void calculateSegmentBounds()
             {
                 segment_bounds->y_end = sample;
             }
-
         }
     }
 }
 
-static void segment()
+static void segmentImage()
 {
     neighbor_t *neighbors;
 
-    for (uint32_t segment = 0; segment < number_of_segments; segment++)
+    clock_t start;
+
+    // ignore segment zero because it is not a seed region
+    for (uint32_t seed_index = 1; seed_index < number_of_segments; seed_index++)
     {
-        neighbors = seed_regions[segment].neighbors;
+        neighbors = seed_regions[seed_index - 1].neighbors;
         uint32_t number_of_neighbors = sizeof(neighbors) / sizeof(neighbor_t);
+
+        printf("Processing Segment %d\n", seed_index);
 
         for (uint32_t seed = 0; seed < number_of_neighbors; seed++)
         {
             // clean slate
             resetNodeIdMap();
+
+            // add this seed region to the node map
+            segments_info[seed_index].neighbor_type = SOURCE;
+            addSegmentToNodeMap(seed_index);
 
             // we always want all sink nodes included.
             // we want to try all combinations of including surrounding
@@ -410,7 +636,7 @@ static void segment()
                 else
                 {
                     // find all other nodes in the neighbor list and assign them node
-                    // ids in the node is map
+                    // ids in the node id map
                     addSegmentToNodeMap(neighbors[i].segment_id);
                 }
 
@@ -439,13 +665,19 @@ static void segment()
 
                 initializeGraph(minimum_node_id, number_of_edges);
 
+                start = clock();
                 setAllTerminalWeights();
+                printf("SATW: %ld ms\n", (clock() - start));
 
                 setAllEdgeWeights();
 
                 computeMaximumFlow(false, NULL, 0);
 
                 storeCut();
+
+                writeSegmentImage(new_segment_ids,
+                                  "/media/zappd/Data/Dropbox/School/ECE697SP/Challenge/SIP_ImageSegmentation_Challenge/mincuts/node_ids_dbg.png",
+                                  lines, samples);
 
                 /* END: Perform Algorithm */
 
@@ -459,12 +691,19 @@ static void segment()
                 }
 
             }
+
+            free(source_indices);
         }
     }
 
+    writeSegmentImage(new_segment_ids,
+                      "/media/zappd/Data/Dropbox/School/ECE697SP/Challenge/SIP_ImageSegmentation_Challenge/mincuts/StanfordMemorial_rat1_rot90_crop_bandCrop.png",
+                      lines, samples);
+
     // we are done!
-    printf("Done");
+    printf("Done\n");
 }
+
 
 static void addSegmentToNodeMap(uint32_t segment_id)
 {
@@ -519,8 +758,8 @@ static void removeSegmentFromNodeMap(uint32_t segment_id)
 
 static void addEdgesFromNodeAt(uint32_t u_line, uint32_t u_sample)
 {
-    int32_t line = (int32_t)u_line;
-    int32_t sample = (int32_t)u_sample;
+    int32_t line   = (int32_t) u_line;
+    int32_t sample = (int32_t) u_sample;
 
     for (uint32_t neighbor_index = 0; neighbor_index < NUM_NEIGHBORS; neighbor_index++)
     {
@@ -541,8 +780,8 @@ static void addEdgesFromNodeAt(uint32_t u_line, uint32_t u_sample)
 
 static void removeEdgesFromNodeAt(uint32_t u_line, uint32_t u_sample)
 {
-    int32_t line = (int32_t)u_line;
-    int32_t sample = (int32_t)u_sample;
+    int32_t line   = (int32_t) u_line;
+    int32_t sample = (int32_t) u_sample;
 
     for (uint32_t neighbor_index = 0; neighbor_index < NUM_NEIGHBORS; neighbor_index++)
     {
@@ -561,32 +800,6 @@ static void removeEdgesFromNodeAt(uint32_t u_line, uint32_t u_sample)
     }
 }
 
-static void setAllTerminalWeights()
-{
-    for (uint32_t line = 0; line < lines; line++)
-    {
-        for (uint32_t sample = 0; sample < samples; sample++)
-        {
-            if (node_ids[line][sample] >= 0)
-            {
-                switch (segments_info[segment_ids[line][sample]].neighbor_type)
-                {
-                    case SOURCE:
-                        setTerminalWeights((uint32_t) node_ids[line][sample], FLT_MAX, 0);
-                        break;
-                    case SINK:
-                        setTerminalWeights((uint32_t) node_ids[line][sample], 0, FLT_MAX);
-                        break;
-                    case AMBIGUOUS:
-                        setTerminalWeights((uint32_t) node_ids[line][sample], 0, 0);
-                        break;
-                    default:
-                        assert(0);
-                }
-            }
-        }
-    }
-}
 
 static void setAllEdgeWeights()
 {
@@ -620,76 +833,104 @@ static void setAllEdgeWeights()
     }
 }
 
-
-#define UNKNOWN_CLASS -1
-#define FOREGROUND_CLASS FOREGROUND
-#define BACKGROUND_CLASS BACKGROUND
-#define SPLIT_CLASS 2
-
-// holds one of the classes defined above
-static int8_t *segment_class;
-
-static void storeCut()
+static uint32_t probeForSegmentId()
 {
-    segment_class = (int8_t *) malloc(number_of_new_segments * sizeof(int8_t));
-    memset(segment_class, UNKNOWN_CLASS, number_of_new_segments);
-
-    uint32_t new_segment_counter = number_of_new_segments;
-
-    // find all segments affected by this cut
-    flagAffectedSegments();
-
-    // we now know how many new segments we will be adding, so allocate more memory
-    segments_info = realloc(segments_info, number_of_new_segments * sizeof(segment_info_t));
-
-    // for affected segments, add them and update information
-    for (uint32_t segment_id = 0; segment_id < number_of_new_segments; segment_id++)
+    for (uint32_t i = number_of_segments; i < MAXIMUM_NUM_SEGMENTS; i++)
     {
-        if (segment_class[segment_id] == 2)
+        if (segments_info[i].pixel_count == 0)
         {
-            new_segment_counter++;
-            segments_info[new_segment_counter].segment_id = new_segment_counter;
-
-            splitSegment(segment_id, new_segment_counter);
+            return i;
         }
     }
 
-    // update number of segments to reflect the number of new segments created this round
-    number_of_new_segments = new_segment_counter;
-
-    free(segment_class);
+    // if this value gets returned, we have bigger problem anyway
+    return 0;
 }
 
-
-static void flagAffectedSegments()
+static void storeCut()
 {
+    uint32_t fore = 0, back = 0;
+
+    // reinitialize background segment ids for all segments
+    for (uint32_t i = 0; i < MAXIMUM_NUM_SEGMENTS; i++)
+    {
+        segments_info[i].background_segment_id = -1;
+        segments_info[i].pixel_count           = 0;
+    }
+
+    for (uint32_t line = 0; line < lines; line++)
+    {
+        for (uint32_t sample = 0; sample < samples; sample++)
+        {
+            if (node_ids[line][sample] >= 0 &&
+                segments_info[segment_ids[line][sample]].neighbor_type == AMBIGUOUS)
+            {
+                if (getTerminal((uint32_t) node_ids[line][sample]) == BACKGROUND)
+                {
+                    if (segments_info[new_segment_ids[line][sample]].background_segment_id == -1)
+                    {
+                        segments_info[new_segment_ids[line][sample]].background_segment_id = probeForSegmentId();
+
+                        assert(number_of_new_segments < MAXIMUM_NUM_SEGMENTS);
+                    }
+
+                    new_segment_ids[line][sample] = (uint32_t) segments_info[new_segment_ids[line][sample]].background_segment_id;
+                    back++;
+                }
+                else
+                {
+                    fore++;
+                }
+            }
+
+            segments_info[new_segment_ids[line][sample]].pixel_count++;
+        }
+    }
+}
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ ~ Terminal Calculation
+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+#define SOURCE_INDEX 0
+#define SINK_INDEX 1
+#define NUM_TERMINAL_WEIGHT_THREADS 8
+
+static void setAllTerminalWeights()
+{
+    float *source_centroid = (float *) calloc(bands, sizeof(float));
+    float *sink_centroid   = (float *) calloc(bands, sizeof(float));
+
+    uint32_t source_count = 0;
+    uint32_t sink_count   = 0;
+
+    clock_t start;
+
+    start = clock();
+    // set all source and sink weights, and tally up vectors for
     for (uint32_t line = 0; line < lines; line++)
     {
         for (uint32_t sample = 0; sample < samples; sample++)
         {
             if (node_ids[line][sample] >= 0)
-            { // this node was included
-                switch (segment_class[new_segment_ids[line][sample]])
+            {
+                switch (segments_info[segment_ids[line][sample]].neighbor_type)
                 {
-                    case UNKNOWN_CLASS:
-                        segment_class[new_segment_ids[line][sample]] = getTerminal(
-                                (uint32_t) node_ids[line][sample]);
+                    case SOURCE:
+                        addVectors(source_centroid, image_cube[line][sample]);
+                        source_count++;
+
+                        setTerminalWeights((uint32_t) node_ids[line][sample], FLT_MAX, 0);
                         break;
 
-                    case BACKGROUND_CLASS:
-                    case FOREGROUND_CLASS:
-                        if (getTerminal((uint32_t) node_ids[line][sample]) !=
-                            segment_class[new_segment_ids[line][sample]])
-                        {
-                            segment_class[new_segment_ids[line][sample]] = 2;
+                    case SINK:
+                        addVectors(sink_centroid, image_cube[line][sample]);
+                        sink_count++;
 
-                            // we have discovered a new segment which will be split:
-                            // increment the segment counter
-                            number_of_new_segments++;
-                        }
+                        setTerminalWeights((uint32_t) node_ids[line][sample], 0, FLT_MAX);
                         break;
 
-                    case SPLIT_CLASS:
+                    case AMBIGUOUS:
                         break;
 
                     default:
@@ -698,203 +939,131 @@ static void flagAffectedSegments()
             }
         }
     }
-}
 
+    printf("1: %ld ms\t", (clock() - start));
 
-static void splitSegment(uint32_t parent_segment_id, uint32_t new_segment_id)
-{
-    // copy old segment bounds
-    segment_bounds_t old_parent_bounds = segments_info[parent_segment_id].segment_bounds;
-
-    assert(old_parent_bounds.x_start >= 0);
-    assert(old_parent_bounds.x_end >= 0);
-    assert(old_parent_bounds.y_start <= samples);
-    assert(old_parent_bounds.y_end >= 0);
-
-    for (uint32_t line = (uint32_t) old_parent_bounds.x_start;
-         line < old_parent_bounds.x_end; line++)
+    start = clock();
+    for (uint32_t band = 0; band < bands; band++)
     {
-        for (uint32_t sample = (uint32_t) old_parent_bounds.y_start;
-             sample < old_parent_bounds.y_end; sample++)
+        sink_centroid[band]   = sink_centroid[band] / sink_count;
+        source_centroid[band] = source_centroid[band] / source_count;
+    }
+    printf("2: %ld ms\t", (clock() - start));
+
+    start = clock();
+
+    parallelComputeAmbiguousTerminalWeights(source_centroid, sink_centroid);
+
+    for (uint32_t line = 0; line < lines; line++)
+    {
+        for (uint32_t sample = 0; sample < samples; sample++)
         {
-            if (segment_ids[line][sample] == parent_segment_id)
+            if (node_ids[line][sample] >= 0)
             {
-                if (getTerminal((uint32_t) node_ids[line][sample]) == FOREGROUND)
+                if (segments_info[segment_ids[line][sample]].neighbor_type == AMBIGUOUS)
                 {
-                    // this segment bisected by the most recent cut.
-                    // if nodes of this segment are in the background, they maintain their current segment id
-                    // if they are in the foreground, then they get the lowest available segment id
-                    new_segment_ids[line][sample] = new_segment_id;
+                    setTerminalWeights((uint32_t) node_ids[line][sample], ambiguous_terminal_storage[line][sample][SOURCE_INDEX], ambiguous_terminal_storage[line][sample][SINK_INDEX]);
                 }
             }
         }
     }
 
-    // reset segment bounds
-    segments_info[parent_segment_id].segment_bounds = DEFAULT_SEGMENT_BOUNDS;
-    segments_info[new_segment_id].segment_bounds    = DEFAULT_SEGMENT_BOUNDS;
+    printf("3: %ld ms\t", (clock() - start));
+}
 
-    // look within the old segment bounds and recalculate only bounds for the two
-    // relevant segments
-    for (uint32_t line = (uint32_t) old_parent_bounds.x_start;
-         line < old_parent_bounds.x_end; line++)
+static void parallelComputeAmbiguousTerminalWeights(float *source_centroid, float *sink_centroid)
+{
+    pthread_t threads[NUM_TERMINAL_WEIGHT_THREADS];
+    terminal_weight_info_t weights_info[NUM_TERMINAL_WEIGHT_THREADS];
+
+    uint32_t lines_per_thread = lines / NUM_TERMINAL_WEIGHT_THREADS;
+
+    for (uint8_t thread_index = 0; thread_index < NUM_TERMINAL_WEIGHT_THREADS; thread_index++)
     {
-        for (uint32_t sample = (uint32_t) old_parent_bounds.y_start;
-             sample < old_parent_bounds.y_end; sample++)
+        weights_info[thread_index].begin_line = thread_index * lines_per_thread;
+        weights_info[thread_index].end_line = (thread_index == (NUM_TERMINAL_WEIGHT_THREADS - 1)) ? lines : ((thread_index + 1) * lines_per_thread);
+        weights_info[thread_index].source_centroid = source_centroid;
+        weights_info[thread_index].sink_centroid = sink_centroid;
+
+        if(pthread_create(&threads[thread_index], NULL, computeSubsetOfTerminalWeights, (void *)(&weights_info[thread_index])))
         {
-            if (new_segment_ids[line][sample] != parent_segment_id &&
-                new_segment_ids[line][sample] != new_segment_id)
-            {
-                continue;
-            }
-
-            segment_bounds_t *segment_bounds = &segments_info[new_segment_ids[line][sample]].segment_bounds;
-
-            // test x start
-            if (segment_bounds->x_start == -1)
-            {
-                segment_bounds->x_start = line;
-            }
-
-            // set x end
-            segment_bounds->x_end = line;
-
-            // test y start
-            if (sample < segment_bounds->y_start)
-            {
-                segment_bounds->y_start = sample;
-            }
-
-            // test y end
-            if (sample > segment_bounds->y_end)
-            {
-                segment_bounds->y_end = sample;
-            }
+            fprintf(stderr, "Error creating thread %d\n", thread_index);
         }
     }
-}
 
-void getSeedIDFromFile(const char *nm, uint32_t **dest)
-{
-    FILE *fp;
-    int i, j, ir;
-
-    int *src = (int *) malloc(sizeof(int) * gconf.nx * gconf.ny);
-
-    fp = fopen(nm, "r");
-
-    if ((fread(src, sizeof(int), (size_t)(gconf.nx * gconf.ny), fp)) != gconf.nx * gconf.ny)
+    // wait for all threads to finish
+    for (uint8_t thread_index = 0; thread_index < NUM_TERMINAL_WEIGHT_THREADS; thread_index++)
     {
-        fprintf(stderr, "Could not slurp %d ints\n", gconf.nx * gconf.ny);
-    }
-
-    fclose(fp);
-
-    for (i = 0, ir=0; i < gconf.nx; i++)
-    {
-        for (j = 0; j < gconf.ny; j++, ir++)
+        if(pthread_join(threads[thread_index], NULL))
         {
-            dest[j][i] = (uint32_t) src[ir];
+            fprintf(stderr, "Error joining thread %d\n", thread_index);
         }
     }
-
-    free(src);
 }
 
-void freeSeeds( seed_region_t * sr)
+static void *computeSubsetOfTerminalWeights(void *wi)
 {
+    terminal_weight_info_t *weight_info = (terminal_weight_info_t *)wi;
 
-  for(int i=0;i<gconf.kcent;i++)
-  {
-    free(sr[i].neighbors);
-  }
-  free(sr);
-
-}
-
-seed_region_t * getSeedDataFromFile(const char * lengthfile, const char * neighborfile, const char * typefile)
-{
-
-  int sum=0,i,j;
-  FILE * fp;
-  seed_region_t * seed_arr;
-
-  int *lengths=(int *)malloc(sizeof(int)*gconf.kcent); /* number of neighbors per node */
-
-  fp=fopen(lengthfile,"r");
-
-  if((fread(lengths, sizeof(int),gconf.kcent,fp))!=gconf.kcent)
-  {
-    fprintf(stderr, "Could not slurp %d ints\n", gconf.nx*gconf.ny);
-  }
-
-  fclose(fp);
-
-  for(i=0;i<gconf.kcent;i++)
-  {
-    sum+=lengths[i];
-  }
-
-  int *ntype=malloc(sizeof(int)*sum); /* neighbor type */
-  int *neigh=malloc(sizeof(int)*sum); /* neighbor index */
-
-  fp=fopen(typefile,"r");
-
-  if((fread(ntype, sizeof(int),sum,fp))!=sum)
-  {
-    fprintf(stderr, "Could not slurp %d ints\n", gconf.nx*gconf.ny);
-  }
-
-  fclose(fp);
-
-
-  fp=fopen(neighborfile,"r");
-
-  if((fread(neigh, sizeof(int),sum,fp))!=sum)
-  {
-    fprintf(stderr, "Could not slurp %d ints\n", gconf.nx*gconf.ny);
-  }
-
-  fclose(fp);
-
-
-  seed_arr =malloc(sizeof(seed_region_t)*gconf.kcent);
-
-  for(i=0;i<gconf.kcent;i++)
-  {
-    seed_arr[i].neighbors=malloc(sizeof(neighbor_t)*lengths[i]);
-    seed_arr[i].neighbor_count=(uint32_t)lengths[i];
-  }
-
-  int gindex=0;
-  for(i=0;i<gconf.kcent;i++)
-  {
-    seed_arr[i].segment_id =(uint32_t) i+1;
-    for(j=0;j<lengths[i];j++,gindex++)
+    for (uint32_t line = weight_info->begin_line; line < weight_info->end_line; line++)
     {
-      seed_arr[i].neighbors[j].segment_id=(uint32_t)neigh[gindex];
-      if(ntype[gindex]==0)
-      {
-        seed_arr[i].neighbors[j].neighbor_type=AMBIGUOUS;
-      }
-      else if(ntype[gindex]==1)
-      {
-        seed_arr[i].neighbors[j].neighbor_type=SINK;
-      }
-      else
-      {
-        seed_arr[i].neighbors[j].neighbor_type=SOURCE;
+        for (uint32_t sample = 0; sample < samples; sample++)
+        {
+            if (node_ids[line][sample] >= 0)
+            {
+                if (segments_info[segment_ids[line][sample]].neighbor_type == AMBIGUOUS)
+                {
+                    ambiguous_terminal_storage[line][sample][SOURCE_INDEX] =
+                            hyperspectralDistanceFromVectors(weight_info->source_centroid, image_cube[line][sample]);
+
+                    ambiguous_terminal_storage[line][sample][SINK_INDEX] =
+                            hyperspectralDistanceFromVectors(weight_info->sink_centroid, image_cube[line][sample]);
+                }
+            }
         }
-
     }
-  }
-  free(lengths);
-  free(ntype);
-  free(neigh);
-
-
-  return seed_arr;
-
 }
 
 
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ ~ Vector Manipulation
+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+static inline float hyperspectralDistanceFromOffset(int32_t line, int32_t sample, int32_t line_offset,
+                                                    int32_t sample_offset)
+{
+    float temp_1, temp_2;
+    float distance = 0;
+
+    for (uint32_t band = 0; band < bands; band++)
+    {
+        temp_1 = image_cube[line + line_offset][sample + sample_offset][band] - image_cube[line][sample][band];
+        temp_2 = sqrtf(fabsf(line_offset) + fabsf(sample_offset));
+
+        distance += powf(temp_1 * temp_1 * temp_2, band_variances[band]);
+    }
+
+    return expf(((-4) * sqrtf(distance)) / (2 * global_config.sigma * global_config.sigma));
+}
+
+static inline float hyperspectralDistanceFromVectors(float *vector_1, float *vector_2)
+{
+    float temp_1;
+    float distance = 0;
+
+    for (uint32_t band = 0; band < bands; band++)
+    {
+        temp_1 = vector_1[band] - vector_2[band];
+        distance += powf(temp_1 * temp_1, band_variances[band]);
+    }
+
+    return expf(((-1) * powf(distance, 0.2)) / (2 * global_config.sigma * global_config.sigma));
+}
+
+static inline float addVectors(float *sum_vector, float *addend_vector)
+{
+    for (uint32_t band = 0; band < bands; band++)
+    {
+        sum_vector[band] += addend_vector[band];
+    }
+}

@@ -5,91 +5,85 @@
 
 #define LINE_LENGTH 256
 
-extern struct gconf gconf;
+extern global_config_t global_config;
 
 void readConfig(const char *fn)
 {
-    FILE *fp;
+    FILE *file_pointer;
+
     char line[LINE_LENGTH + 1];
     char *tokenKey;
     char *tokenValue;
 
-    if ((fp = fopen(fn, "r")) == NULL)
+    if ((file_pointer = fopen(fn, "r")) == NULL)
     {
         fprintf(stderr, "Could not open configuration file %s\n", fn);
     }
     else
     {
-        while (fgets(line, sizeof(line), fp) != NULL)
+        while (fgets(line, sizeof(line), file_pointer) != NULL)
         {
             tokenKey = strtok(line, "\t =\n\r");
             if (tokenKey != NULL && tokenKey[0] != '#')
             {
                 tokenValue = strtok(NULL, "\t =\n\r");
 
-                if (tokenValue == NULL) {
+                if (tokenValue == NULL)
+                {
                     continue;
                 }
 
-                if (strcasecmp(tokenKey, "inputData") == 0)
+                if (strcmp(tokenKey, "inputData") == 0)
                 {
-                    strcpy(gconf.inputData, tokenValue);
+                    strcpy(global_config.inputData, tokenValue);
                 }
-                else if (strcasecmp(tokenKey, "nx") == 0)
+                else if (strcmp(tokenKey, "nw") == 0)
                 {
-                    gconf.nx = (int) strtol(tokenValue, NULL, 10);
+                    global_config.nw = (int) strtol(tokenValue, NULL, 10);
                 }
-                else if (strcasecmp(tokenKey, "ny") == 0)
+                else if (strcmp(tokenKey, "sigma") == 0)
                 {
-                    gconf.ny = (int) strtol(tokenValue, NULL, 10);
+                    global_config.sigma = strtof(tokenValue, NULL);
                 }
-                else if (strcasecmp(tokenKey, "nw") == 0)
+                else if (strcmp(tokenKey, "evcrit") == 0)
                 {
-                    gconf.nw = (int) strtol(tokenValue, NULL, 10);
+                    global_config.evcrit = strtof(tokenValue, NULL);
                 }
-                else if (strcasecmp(tokenKey, "sigma") == 0)
+                else if (strcmp(tokenKey, "t") == 0)
                 {
-                    gconf.sigma = strtof(tokenValue, NULL);
+                    global_config.t = (int) strtol(tokenValue, NULL, 10);
                 }
-                else if (strcasecmp(tokenKey, "evcrit") == 0)
+                else if (strcmp(tokenKey, "maxevfact") == 0)
                 {
-                    gconf.evcrit = strtof(tokenValue, NULL);
+                    global_config.maxevfact = strtof(tokenValue, NULL);
                 }
-                else if (strcasecmp(tokenKey, "t") == 0)
+                else if (strcmp(tokenKey, "kelbw") == 0)
                 {
-                    gconf.t = (int) strtol(tokenValue, NULL, 10);
+                    global_config.kelbw = strtof(tokenValue, NULL);
                 }
-                else if (strcasecmp(tokenKey, "maxevfact") == 0)
+                else if (strcmp(tokenKey, "taucardinality") == 0)
                 {
-                    gconf.maxevfact = strtof(tokenValue, NULL);
+                    global_config.taucardinality = strtof(tokenValue, NULL);
                 }
-                else if (strcasecmp(tokenKey, "kelbw") == 0)
+                else if (strcmp(tokenKey, "krep") == 0)
                 {
-                    gconf.kelbw = strtof(tokenValue, NULL);
+                    global_config.krep = (int) strtol(tokenValue, NULL, 10);
                 }
-                else if (strcasecmp(tokenKey, "taucardinality") == 0)
+                else if (strcmp(tokenKey, "kiter") == 0)
                 {
-                    gconf.taucardinality = strtof(tokenValue, NULL);
+                    global_config.kiter = (int) strtol(tokenValue, NULL, 10);
                 }
-                else if (strcasecmp(tokenKey, "krep") == 0)
+                else if (strcmp(tokenKey, "kcent") == 0)
                 {
-                    gconf.krep = (int) strtol(tokenValue, NULL, 10);
+                    global_config.kcent = strtof(tokenValue, NULL);
                 }
-                else if (strcasecmp(tokenKey, "kiter") == 0)
+                else if (strcmp(tokenKey, "verbosity") == 0)
                 {
-                    gconf.kiter = (int) strtol(tokenValue, NULL, 10);
+                    global_config.verbosity = (int) strtol(tokenValue, NULL, 10);
                 }
-                else if (strcasecmp(tokenKey, "kcent") == 0)
+                else if (strcmp(tokenKey, "cardmin") == 0)
                 {
-                    gconf.kcent = strtof(tokenValue, NULL);
-                }
-                else if (strcasecmp(tokenKey, "verbosity") == 0)
-                {
-                    gconf.verbosity = (int) strtol(tokenValue, NULL, 10);
-                }
-                else if (strcasecmp(tokenKey, "cardmin") == 0)
-                {
-                    gconf.cardmin = (int) strtol(tokenValue, NULL, 10);
+                    global_config.cardmin = (int) strtol(tokenValue, NULL, 10);
                 }
                 else
                 {
@@ -105,8 +99,6 @@ void printConfig(void)
 {
     fprintf(stderr, "Runtime configuration\n"
                     "\t inputData: %s\n"
-                    "\t nx: %d\n"
-                    "\t ny: %d\n"
                     "\t nw: %d\n"
                     "\t sigma: %f\n"
                     "\t evcrit: %f\n"
@@ -119,10 +111,9 @@ void printConfig(void)
                     "\t taucardinality: %f\n"
                     "\t kelbw: %f\n"
                     "\t cardmin: %d\n\n",
-            gconf.inputData, gconf.nx, gconf.ny,
-            gconf.nw, gconf.sigma, gconf.evcrit,
-            gconf.maxevfact, gconf.t, gconf.krep,
-            gconf.kiter, gconf.kcent, gconf.verbosity,
-            gconf.taucardinality, gconf.kelbw,
-            gconf.cardmin);
+            global_config.inputData, global_config.nw, global_config.sigma,
+            global_config.evcrit, global_config.maxevfact, global_config.t,
+            global_config.krep, global_config.kiter, global_config.kcent,
+            global_config.verbosity, global_config.taucardinality,
+            global_config.kelbw, global_config.cardmin);
 }

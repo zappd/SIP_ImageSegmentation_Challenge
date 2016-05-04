@@ -1,11 +1,7 @@
 #Datafile
 inputData=../prototyping/diffusedcube.data
 
-#Dimensions
-nx=600
-ny=800
-
-#Number of wavenumbers
+#Number of wave numbers
 nw=1
 
 #Std for the affinity function

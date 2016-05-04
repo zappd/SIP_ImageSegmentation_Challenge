@@ -53,7 +53,7 @@ void writeSegmentImage(uint32_t **image, char *file_path, uint32_t width, uint32
 
 static png_color *pixelAt(uint32_t x, uint32_t y)
 {
-    return (pixels + (image_width * y) + x);
+    return &pixels[(image_width * y) + x];
 }
 
 static int savePngToFile(const char *path)

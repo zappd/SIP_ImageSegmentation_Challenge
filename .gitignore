@@ -1,3 +1,11 @@
 # CLion
 .idea
 CMakeLists.txt
+
+# data
+*.data
+*.img
+*.hdr
+
+# output
+*.png

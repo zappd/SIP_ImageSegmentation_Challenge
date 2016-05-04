@@ -27,7 +27,7 @@ static const char *INTERLEAVE_KEY = "interleave";
 static const char *BYTE_ORDER_KEY = "byte order";
 
 
-float ***readImageCube(char const *data_file_path, char const *header_file_path, image_info_t *image_info)
+float ***readImageCubeFromFile(char const *data_file_path, char const *header_file_path, image_info_t *image_info)
 {
 	char *header_file;
 	float ***image_cube = NULL;

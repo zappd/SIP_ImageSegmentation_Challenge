@@ -2,11 +2,9 @@
 #define _CONFIG_H
 
 
-struct gconf
+typedef struct
 {
     char  inputData[256];
-    int   nx;
-    int   ny;
     int   nw;
     float sigma;
     float evcrit;
@@ -19,9 +17,9 @@ struct gconf
     float taucardinality;
     float kelbw;
     int   cardmin;
-};
+} global_config_t;
 
-extern struct gconf gconf;
+extern global_config_t global_config;
 
 void readConfig(const char *);
 

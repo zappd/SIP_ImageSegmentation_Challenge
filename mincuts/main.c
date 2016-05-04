@@ -3,22 +3,24 @@
 #include <stdlib.h>
 
 #include "seeds.h"
-#include "config.h"
-#include "segmenter.h"
-// #include "graphCuts.h"
+#include "segmentPngIO.h"
 
-//static const char *data_file_path   = "/home/zappd/SIP_Challenge_Data/StanfordMemorial_rat1_rot90_crop_bandCrop.img";
-//static const char *header_file_path = "/home/zappd/SIP_Challenge_Data/StanfordMemorial_rat1_rot90_crop_bandCrop.img.hdr";
-static const char *data_file_path   = "StanfordMemorial_rat1_rot90_crop_bandCrop.img";
-static const char *header_file_path = "StanfordMemorial_rat1_rot90_crop_bandCrop.img.hdr";
+static const char *data_file_path   = "/media/zappd/Data/Dropbox/School/ECE697SP/Challenge/SIP_ImageSegmentation_Challenge/mincuts/StanfordMemorial_rat1_rot90_crop_bandCrop.img";
+static const char *header_file_path = "/media/zappd/Data/Dropbox/School/ECE697SP/Challenge/SIP_ImageSegmentation_Challenge/mincuts/StanfordMemorial_rat1_rot90_crop_bandCrop.img.hdr";
+
+static const char *segment_id_file_path      = "/media/zappd/Data/Dropbox/School/ECE697SP/Challenge/SIP_ImageSegmentation_Challenge/mincuts/binid.data";
+static const char *neighbor_length_file_path = "/media/zappd/Data/Dropbox/School/ECE697SP/Challenge/SIP_ImageSegmentation_Challenge/mincuts/Fnumadj_int.data";
+static const char *neighbor_file_path        = "/media/zappd/Data/Dropbox/School/ECE697SP/Challenge/SIP_ImageSegmentation_Challenge/mincuts/Fadjacent_int.data";
+static const char *neighbor_type_file_path   = "/media/zappd/Data/Dropbox/School/ECE697SP/Challenge/SIP_ImageSegmentation_Challenge/mincuts/Ftype_int.data";
+
+static const char *global_config_file = "/media/zappd/Data/Dropbox/School/ECE697SP/Challenge/SIP_ImageSegmentation_Challenge/mincuts/seconfig";
+
 
 static const char *png_extension = ".png";
 
 /* Global configuration, initialized to defaults */
-struct gconf gconf = {
+global_config_t global_config = {
         .inputData="data.data",
-        .nx=64,
-        .ny=64,
         .nw=64,
         .sigma=0.1,
         .evcrit=0.333,
@@ -31,42 +33,40 @@ struct gconf gconf = {
 
 int main(int argc, char *argv[])
 {
-    image_info_t image_info;
-    char         *segment_image_path;
-    uint32_t ** segment_id_map;
-    seed_region_t * seed_region_arr;
+    char  *segment_image_path;
+    float ***image_cube;
 
-    readConfig("seconfig");
+    image_info_t  image_info;
+    seed_region_t *seed_region_arr;
+    uint32_t      **segment_id_map;
 
-    float ***image_cube = readImageCube(data_file_path, header_file_path, &image_info);
+    // load config values into global struct
+    readConfig(global_config_file);
 
-    printf("Read Finished\n\n");
+    // read in image cube from the specific path;
+    image_cube = readImageCubeFromFile(data_file_path, header_file_path, &image_info);
 
+    // make some space for the output PNG file path
     segment_image_path = (char *) malloc((strlen(data_file_path) + strlen(png_extension) + 1) * sizeof(char));
-    segment_id_map=malloc(image_info.lines*sizeof(uint32_t *));
 
-
-    for (uint32_t line = 0; line < image_info.lines; line++)
-    {
-        segment_id_map[line] = (uint32_t *) malloc(image_info.samples * sizeof(uint32_t));
-    }
-
+    // create the output PNG file path as a function of the image input
     strcpy(segment_image_path, data_file_path);
     strcat(segment_image_path, png_extension);
 
-    getSeedIDFromFile("binid.data",segment_id_map);
-    seed_region_arr=getSeedDataFromFile("Fnumadj_int.data","Fadjacent_int.data","Ftype_int.data");
+    // read in segment ids from binary file
+    readSegmentIdsFromFile(segment_id_file_path, &segment_id_map, &image_info);
 
+    // read in all seed region data from file
+    seed_region_arr = getSeedDataFromFile(neighbor_length_file_path,
+                                          neighbor_file_path,
+                                          neighbor_type_file_path);
 
-    //cutSeedRegions(image_cube, image_info, segment_id_map, seed_region_arr, gconf.kcent);
-
-    //recursivelySegment(image_cube, &image_info, segment_image_path);
+    // cut those seed regions!!!
+    cutSeedRegions(image_cube, &image_info, segment_id_map, seed_region_arr, global_config.kcent);
 
     freeImageCube(image_cube, &image_info);
-    freeSeeds(seed_region_arr);
 
-    // readConfig("seconfig");
-    /*printConfig();*/
+    freeSeeds(seed_region_arr);
 
     return 0;
 }
