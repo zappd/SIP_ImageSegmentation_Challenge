@@ -608,7 +608,7 @@ static void initializeMaxFlowAndReuseTrees()
 
                     if (node_2->parent_edge != NULL &&
                         !node_2->is_in_sink &&
-                        ((edge_t *)edge->sister_edge)->residual_capacity > DELTA)
+                        ((edge_t *) edge->sister_edge)->residual_capacity > DELTA)
                     {
                         setNodeActive(node_2);
                     }
@@ -1083,7 +1083,7 @@ float computeMaximumFlow(bool reuse_trees, uint32_t *changed_nodes, uint32_t *nu
                         head_node->is_in_sink  = true;
                         head_node->parent_edge = edge->sister_edge; // n.setParent(edge.getsister_edge());
                         head_node->timestamp   = active_node->timestamp; // .setTimestamp(active_node.getTimestamp());
-                        head_node->distance    =
+                        head_node->distance =
                                 active_node->distance + 1; // .setDistance(active_node.getDistance() + 1);
                         setNodeActive(head_node);
                         addToChangedList(head_node);

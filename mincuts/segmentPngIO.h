@@ -1,5 +1,3 @@
-
-
 #ifndef SEGMENTER_PNG_IO_H
 #define SEGMENTER_PNG_IO_H
 

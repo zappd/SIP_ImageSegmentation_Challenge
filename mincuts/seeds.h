@@ -3,7 +3,6 @@
 #include "config.h"
 #include "readENVI.h"
 
-
 #ifndef SEEDS_H
 #define SEEDS_H
 

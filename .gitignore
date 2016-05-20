@@ -9,3 +9,8 @@ CMakeLists.txt
 
 # output
 *.png
+
+#external libs
+feast
+lapacke
+vl

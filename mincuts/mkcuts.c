@@ -3,18 +3,16 @@
 #include <stdlib.h>
 
 #include "seeds.h"
-#include "segmentPngIO.h"
 
-static const char *data_file_path   = "/media/zappd/Data/Dropbox/School/ECE697SP/Challenge/SIP_ImageSegmentation_Challenge/mincuts/StanfordMemorial_rat1_rot90_crop_bandCrop.img";
-static const char *header_file_path = "/media/zappd/Data/Dropbox/School/ECE697SP/Challenge/SIP_ImageSegmentation_Challenge/mincuts/StanfordMemorial_rat1_rot90_crop_bandCrop.img.hdr";
+static const char *data_file_path   = "StanfordMemorial_rat1_rot90_crop_bandCrop.img";
+static const char *header_file_path = "StanfordMemorial_rat1_rot90_crop_bandCrop.img.hdr";
 
-static const char *segment_id_file_path      = "/media/zappd/Data/Dropbox/School/ECE697SP/Challenge/SIP_ImageSegmentation_Challenge/mincuts/binid.data";
-static const char *neighbor_length_file_path = "/media/zappd/Data/Dropbox/School/ECE697SP/Challenge/SIP_ImageSegmentation_Challenge/mincuts/Fnumadj_int.data";
-static const char *neighbor_file_path        = "/media/zappd/Data/Dropbox/School/ECE697SP/Challenge/SIP_ImageSegmentation_Challenge/mincuts/Fadjacent_int.data";
-static const char *neighbor_type_file_path   = "/media/zappd/Data/Dropbox/School/ECE697SP/Challenge/SIP_ImageSegmentation_Challenge/mincuts/Ftype_int.data";
+static const char *segment_id_file_path      = "binid.data";
+static const char *neighbor_length_file_path = "Fnumadj_int.data";
+static const char *neighbor_file_path        = "Fadjacent_int.data";
+static const char *neighbor_type_file_path   = "Ftype_int.data";
 
-static const char *global_config_file = "/media/zappd/Data/Dropbox/School/ECE697SP/Challenge/SIP_ImageSegmentation_Challenge/mincuts/seconfig";
-
+static const char *global_config_file = "seconfig";
 
 static const char *png_extension = ".png";
 
@@ -62,7 +60,7 @@ int main(int argc, char *argv[])
                                           neighbor_type_file_path);
 
     // cut those seed regions!!!
-    cutSeedRegions(image_cube, &image_info, segment_id_map, seed_region_arr, global_config.kcent);
+    cutSeedRegions(image_cube, &image_info, segment_id_map, seed_region_arr, (uint32_t) global_config.kcent);
 
     freeImageCube(image_cube, &image_info);
 

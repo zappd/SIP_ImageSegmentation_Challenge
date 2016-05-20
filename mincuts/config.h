@@ -1,11 +1,13 @@
-#if !defined(_CONFIG_H)
-#define _CONFIG_H
+#ifndef CONFIG_H
+#define CONFIG_H
 
 
 typedef struct
 {
     char  inputData[256];
     int   nw;
+    int   nx;
+    int   ny;
     float sigma;
     float evcrit;
     int   t;
@@ -26,4 +28,4 @@ void readConfig(const char *);
 void printConfig(void);
 
 
-#endif
+#endif // CONFIG_H
